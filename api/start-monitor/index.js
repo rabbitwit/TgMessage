@@ -4,7 +4,6 @@ export default async function startMonitor(request, context) {
     console.log('Start Monitor function called');
     console.log('Request URL:', request.url);
     console.log('Request method:', request.method);
-    console.log('Context keys:', Object.keys(context));
     
     // 检查请求方法
     if (request.method !== 'GET') {
@@ -17,19 +16,14 @@ export default async function startMonitor(request, context) {
     // 获取环境变量
     const env = context.env || process.env || {};
     console.log('Env keys:', Object.keys(env));
-    console.log('Process env keys:', Object.keys(process.env || {}));
     
     // 检查认证密钥
     const url = new URL(request.url, 'http://localhost');
     const key = url.searchParams.get('key');
     
     console.log('Key from URL:', key);
-    console.log('Expected key (env.key):', env.key);
-    console.log('Expected key (process.env.key):', process.env?.key);
-    
-    // 尝试不同的键名
-    const envKey = env.key || env.KEY || env.Key || process.env?.key || process.env?.KEY;
-    console.log('Actual env key used:', envKey);
+    const envKey = env.key || process.env?.key;
+    console.log('Expected key:', envKey);
     
     if (key !== envKey) {
         return new Response(JSON.stringify({ code: 401, message: 'Unauthorized' }), {
@@ -39,11 +33,11 @@ export default async function startMonitor(request, context) {
     }
     
     // 检查必要的 MTProto 环境变量
-    console.log('MTPROTO_API_ID exists:', !!(env.MTPROTO_API_ID || process.env?.MTPROTO_API_ID));
-    console.log('MTPROTO_API_HASH exists:', !!(env.MTPROTO_API_HASH || process.env?.MTPROTO_API_HASH));
-    
     const MTPROTO_API_ID = env.MTPROTO_API_ID || process.env?.MTPROTO_API_ID;
     const MTPROTO_API_HASH = env.MTPROTO_API_HASH || process.env?.MTPROTO_API_HASH;
+    
+    console.log('MTPROTO_API_ID exists:', !!MTPROTO_API_ID);
+    console.log('MTPROTO_API_HASH exists:', !!MTPROTO_API_HASH);
     
     if (!MTPROTO_API_ID || !MTPROTO_API_HASH) {
         return new Response(JSON.stringify({ 
@@ -58,29 +52,35 @@ export default async function startMonitor(request, context) {
     try {
         // 获取参数（优先从环境变量获取，其次从查询参数获取）
         let keywords = [];
-        if (env.MONITOR_KEYWORDS || process.env?.MONITOR_KEYWORDS) {
-            const monitorKeywords = env.MONITOR_KEYWORDS || process.env?.MONITOR_KEYWORDS;
+        const monitorKeywords = env.MONITOR_KEYWORDS || process.env?.MONITOR_KEYWORDS;
+        const keywordsParam = url.searchParams.get('keywords');
+        
+        if (monitorKeywords) {
             keywords = monitorKeywords.split(',');
             console.log('Keywords from env:', keywords);
-        } else {
-            const keywordsParam = url.searchParams.get('keywords');
-            if (keywordsParam) {
-                keywords = keywordsParam.split(',');
-                console.log('Keywords from URL:', keywords);
-            }
+        } else if (keywordsParam) {
+            keywords = keywordsParam.split(',');
+            console.log('Keywords from URL:', keywords);
         }
         
         let chatIds = [];
-        if (env.MONITOR_CHAT_IDS || process.env?.MONITOR_CHAT_IDS) {
-            const monitorChatIds = env.MONITOR_CHAT_IDS || process.env?.MONITOR_CHAT_IDS;
-            chatIds = monitorChatIds.split(',').map(id => parseInt(id));
+        const monitorChatIds = env.MONITOR_CHAT_IDS || process.env?.MONITOR_CHAT_IDS;
+        const chatIdsParam = url.searchParams.get('chat_ids');
+        
+        if (monitorChatIds) {
+            chatIds = monitorChatIds.split(',').map(id => {
+                const parsed = parseInt(id);
+                console.log(`Parsing chat ID: ${id} -> ${parsed}`);
+                return parsed;
+            });
             console.log('Chat IDs from env:', chatIds);
-        } else {
-            const chatIdsParam = url.searchParams.get('chat_ids');
-            if (chatIdsParam) {
-                chatIds = chatIdsParam.split(',').map(id => parseInt(id));
-                console.log('Chat IDs from URL:', chatIds);
-            }
+        } else if (chatIdsParam) {
+            chatIds = chatIdsParam.split(',').map(id => {
+                const parsed = parseInt(id);
+                console.log(`Parsing chat ID: ${id} -> ${parsed}`);
+                return parsed;
+            });
+            console.log('Chat IDs from URL:', chatIds);
         }
         
         // 检查参数
@@ -113,6 +113,8 @@ export default async function startMonitor(request, context) {
         await monitor.startMonitoring(keywords, chatIds);
         
         console.log('Monitoring started successfully');
+        // 注意：这里我们不立即返回响应，因为监控需要持续运行
+        // 但在无服务器环境中，函数会在处理完后终止
         return new Response(JSON.stringify({ 
             code: 200, 
             message: 'MTProto monitoring started successfully',

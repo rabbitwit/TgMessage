@@ -42,7 +42,9 @@ class MTProtoMonitor {
 
     // 连接到 Telegram
     try {
+      console.log('Connecting to Telegram...');
       await this.mtproto.call('help.getNearestDc', {});
+      console.log('Connected to Telegram successfully');
     } catch (error) {
       console.error('Failed to connect to Telegram:', error);
       throw new Error('Failed to connect to Telegram: ' + error.message);
@@ -50,24 +52,29 @@ class MTProtoMonitor {
     
     // 设置事件处理器（避免重复绑定）
     if (!this.isListening) {
+      console.log('Setting up event handlers');
       this.mtproto.updates.on('updateShortMessage', this.handleNewMessage.bind(this));
       this.mtproto.updates.on('updateShortChatMessage', this.handleNewChatMessage.bind(this));
       this.mtproto.updates.on('updates', this.handleUpdates.bind(this));
       this.isListening = true;
+      console.log('Event handlers set up successfully');
     }
 
-    console.log('MTProto monitoring started');
+    console.log('MTProto monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
   }
 
   async handleNewMessage(update) {
+    console.log('Received updateShortMessage:', update);
     await this.processMessage(update.message, update.user_id);
   }
 
   async handleNewChatMessage(update) {
+    console.log('Received updateShortChatMessage:', update);
     await this.processMessage(update.message, update.from_id, update.chat_id);
   }
 
   async handleUpdates(updates) {
+    console.log('Received updates:', updates);
     if (updates.updates) {
       for (const update of updates.updates) {
         if (update._ === 'updateNewMessage' && update.message) {
@@ -79,19 +86,35 @@ class MTProtoMonitor {
   }
 
   async processMessage(messageText, fromId, chatId) {
+    console.log('Processing message:', { messageText, fromId, chatId });
+    
     // 检查是否是目标聊天室的消息
     if (this.chatIds && !this.chatIds.includes(fromId) && !this.chatIds.includes(chatId)) {
+      console.log('Message not from target chat, ignoring');
       return;
     }
 
+    console.log('Message is from target chat, checking for keywords');
+    console.log('Target keywords:', this.keywords);
+    console.log('Target chat IDs:', this.chatIds);
+    
     // 检查是否包含关键词
-    if (this.keywords && this.keywords.some(keyword => messageText.includes(keyword))) {
+    if (this.keywords && this.keywords.some(keyword => {
+      const contains = messageText.includes(keyword);
+      console.log(`Checking keyword "${keyword}" in message: ${contains}`);
+      return contains;
+    })) {
+      console.log('Keyword found in message, sending notification');
       // 发送通知
       await this.sendNotification(messageText, fromId, chatId);
+    } else {
+      console.log('No keywords found in message');
     }
   }
 
   async sendNotification(messageText, fromId, chatId) {
+    console.log('Sending notification for message:', { messageText, fromId, chatId });
+    
     const targetChatId = chatId !== undefined ? chatId : fromId;
     const notificationText = `
 🚨 Keyword Alert 🚨
@@ -99,16 +122,22 @@ Chat: ${targetChatId}
 Message: ${messageText}
     `.trim();
 
+    console.log('Admin chat ID:', this.env.ADMIN_CHAT_ID);
+    
     // 发送给管理员
     if (this.env.ADMIN_CHAT_ID) {
       try {
-        await this.notificationBot.sendMessage({
+        console.log('Sending message via bot...');
+        const result = await this.notificationBot.sendMessage({
           text: notificationText,
           chat_id: this.env.ADMIN_CHAT_ID
         });
+        console.log('Notification sent successfully:', result);
       } catch (error) {
         console.error('Failed to send notification:', error);
       }
+    } else {
+      console.log('No ADMIN_CHAT_ID configured, cannot send notification');
     }
   }
 }
