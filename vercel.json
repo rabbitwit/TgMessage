@@ -3,12 +3,6 @@
     "api/*.php": {
       "runtime": "vercel-php@0.7.1"
     },
-    "api/start-monitor/index.js": {
-      "runtime": "@vercel/node@3.0.13"
-    },
-    "api/start-bot-monitor/index.js": {
-      "runtime": "@vercel/node@3.0.13"
-    },
     "api/start-gramjs-monitor/index.js": {
       "runtime": "@vercel/node@3.0.13"
     }
@@ -21,14 +15,6 @@
     {
       "src": "/webhook",
       "dest": "/api/webhook.php"
-    },
-    {
-      "src": "/startMonitor",
-      "dest": "/api/start-monitor/index.js"
-    },
-    {
-      "src": "/startBotMonitor",
-      "dest": "/api/start-bot-monitor/index.js"
     },
     {
       "src": "/startGramjsMonitor",
