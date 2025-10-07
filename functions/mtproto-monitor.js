@@ -24,6 +24,9 @@ class MTProtoMonitor {
     
     // 标记事件监听器是否已绑定
     this.isListening = false;
+    
+    // 存储待处理的验证码请求
+    this.pendingAuth = null;
   }
 
   async authenticate() {
@@ -53,7 +56,7 @@ class MTProtoMonitor {
         console.log('Code sent:', sentCode);
         
         if (this.env.PHONE_CODE) {
-          console.log('Signing in with code');
+          console.log('Signing in with code from environment variable');
           const signInResult = await this.mtproto.call('auth.signIn', {
             phone_number: this.env.PHONE_NUMBER,
             phone_code: this.env.PHONE_CODE,
@@ -62,7 +65,9 @@ class MTProtoMonitor {
           console.log('Sign in result:', signInResult);
           return true;
         } else {
-          console.log('PHONE_CODE not provided, waiting for manual input or automatic retry');
+          console.log('PHONE_CODE not provided in environment, waiting for manual input via bot');
+          // 通过机器人请求验证码输入
+          await this.requestCodeViaBot(sentCode.phone_code_hash);
           return false;
         }
       } catch (error) {
@@ -89,7 +94,7 @@ class MTProtoMonitor {
             console.log('Code sent after migration:', sentCode);
             
             if (this.env.PHONE_CODE) {
-              console.log('Signing in with code after migration');
+              console.log('Signing in with code from environment variable after migration');
               const signInResult = await this.mtproto.call('auth.signIn', {
                 phone_number: this.env.PHONE_NUMBER,
                 phone_code: this.env.PHONE_CODE,
@@ -98,7 +103,9 @@ class MTProtoMonitor {
               console.log('Sign in result after migration:', signInResult);
               return true;
             } else {
-              console.log('PHONE_CODE not provided, waiting for manual input or automatic retry');
+              console.log('PHONE_CODE not provided, waiting for manual input via bot');
+              // 通过机器人请求验证码输入
+              await this.requestCodeViaBot(sentCode.phone_code_hash);
               return false;
             }
           } catch (retryError) {
@@ -129,6 +136,84 @@ class MTProtoMonitor {
     } else {
       console.log('PHONE_NUMBER not provided, cannot authenticate. You need to provide your phone number to log into your Telegram account.');
       return false;
+    }
+  }
+  
+  async requestCodeViaBot(phoneCodeHash) {
+    // 保存待处理的认证信息
+    this.pendingAuth = {
+      phone_number: this.env.PHONE_NUMBER,
+      phone_code_hash: phoneCodeHash,
+      timestamp: Date.now()
+    };
+    
+    // 通过机器人发送消息请求输入验证码
+    if (this.env.ADMIN_CHAT_ID) {
+      const message = `
+MTProto 监控需要验证码才能登录您的 Telegram 账号。
+请回复此消息，格式为: code<空格>验证码
+例如: code 123456
+      `.trim();
+      
+      try {
+        await this.notificationBot.sendMessage({
+          text: message,
+          chat_id: this.env.ADMIN_CHAT_ID
+        });
+        console.log('Code request sent to admin via bot');
+      } catch (error) {
+        console.error('Failed to send code request via bot:', error);
+      }
+    }
+  }
+  
+  async submitCode(phoneCode) {
+    if (!this.pendingAuth) {
+      console.log('No pending authentication request');
+      return false;
+    }
+    
+    // 检查请求是否过期（5分钟内有效）
+    if (Date.now() - this.pendingAuth.timestamp > 5 * 60 * 1000) {
+      console.log('Authentication request expired');
+      this.pendingAuth = null;
+      return false;
+    }
+    
+    try {
+      console.log('Signing in with manually provided code');
+      const signInResult = await this.mtproto.call('auth.signIn', {
+        phone_number: this.pendingAuth.phone_number,
+        phone_code: phoneCode,
+        phone_code_hash: this.pendingAuth.phone_code_hash,
+      });
+      console.log('Sign in result:', signInResult);
+      
+      // 清除待处理的认证信息
+      this.pendingAuth = null;
+      return true;
+    } catch (error) {
+      console.error('Failed to sign in with provided code:', error);
+      
+      // 如果需要密码
+      if (error.error_message === 'SESSION_PASSWORD_NEEDED') {
+        if (this.env.TWO_FACTOR_PASSWORD) {
+          console.log('Two-factor authentication required');
+          const passwordResult = await this.mtproto.call('auth.checkPassword', {
+            password: {
+              _: 'inputCheckPasswordSRP',
+              ...await this.mtproto.call('account.getPassword'),
+            },
+          });
+          console.log('Password check result:', passwordResult);
+          return true;
+        } else {
+          console.log('TWO_FACTOR_PASSWORD not provided');
+          return false;
+        }
+      }
+      
+      throw error;
     }
   }
 
