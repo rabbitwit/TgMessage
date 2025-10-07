@@ -49,6 +49,18 @@ export default async function startMonitor(request, context) {
         });
     }
     
+    // 检查手机号码（必须提供）
+    const PHONE_NUMBER = env.PHONE_NUMBER || process.env?.PHONE_NUMBER;
+    if (!PHONE_NUMBER) {
+        return new Response(JSON.stringify({ 
+            code: 400, 
+            message: 'Missing PHONE_NUMBER in environment variables. You need to provide your phone number to log into your Telegram account.' 
+        }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 400
+        });
+    }
+    
     try {
         // 获取参数（优先从环境变量获取，其次从查询参数获取）
         let keywords = [];

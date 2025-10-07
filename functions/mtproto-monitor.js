@@ -26,6 +26,73 @@ class MTProtoMonitor {
     this.isListening = false;
   }
 
+  async authenticate() {
+    // 检查是否已经认证
+    try {
+      const auth = await this.mtproto.call('users.getFullUser', {
+        id: { _: 'inputUserSelf' }
+      });
+      console.log('Already authenticated:', auth);
+      return true;
+    } catch (error) {
+      console.log('Not authenticated, need to authenticate');
+    }
+    
+    // 进行认证
+    if (this.env.PHONE_NUMBER) {
+      try {
+        console.log('Sending code to', this.env.PHONE_NUMBER);
+        const sentCode = await this.mtproto.call('auth.sendCode', {
+          phone_number: this.env.PHONE_NUMBER,
+          api_id: parseInt(this.env.MTPROTO_API_ID),
+          api_hash: this.env.MTPROTO_API_HASH,
+          settings: {
+            _: 'codeSettings',
+          },
+        });
+        console.log('Code sent:', sentCode);
+        
+        if (this.env.PHONE_CODE) {
+          console.log('Signing in with code');
+          const signInResult = await this.mtproto.call('auth.signIn', {
+            phone_number: this.env.PHONE_NUMBER,
+            phone_code: this.env.PHONE_CODE,
+            phone_code_hash: sentCode.phone_code_hash,
+          });
+          console.log('Sign in result:', signInResult);
+          return true;
+        } else {
+          console.log('PHONE_CODE not provided, waiting for manual input');
+          return false;
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        
+        // 如果需要密码
+        if (error.error_message === 'SESSION_PASSWORD_NEEDED') {
+          if (this.env.TWO_FACTOR_PASSWORD) {
+            console.log('Two-factor authentication required');
+            const passwordResult = await this.mtproto.call('auth.checkPassword', {
+              password: {
+                _: 'inputCheckPasswordSRP',
+                ...await this.mtproto.call('account.getPassword'),
+              },
+            });
+            console.log('Password check result:', passwordResult);
+            return true;
+          } else {
+            console.log('TWO_FACTOR_PASSWORD not provided');
+            return false;
+          }
+        }
+        throw error;
+      }
+    } else {
+      console.log('PHONE_NUMBER not provided, cannot authenticate. You need to provide your phone number to log into your Telegram account.');
+      return false;
+    }
+  }
+
   async startMonitoring(keywords, chatIds) {
     // 验证输入参数
     if (!Array.isArray(keywords) || keywords.length === 0) {
@@ -40,11 +107,20 @@ class MTProtoMonitor {
     this.keywords = keywords;
     this.chatIds = chatIds;
 
-    // 连接到 Telegram
+    // 连接到 Telegram 并进行认证
     try {
       console.log('Connecting to Telegram...');
       await this.mtproto.call('help.getNearestDc', {});
       console.log('Connected to Telegram successfully');
+      
+      // 尝试认证
+      console.log('Authenticating...');
+      const authenticated = await this.authenticate();
+      if (!authenticated) {
+        console.log('Authentication not completed, some features may not work');
+      } else {
+        console.log('Authentication completed successfully');
+      }
     } catch (error) {
       console.error('Failed to connect to Telegram:', error);
       throw new Error('Failed to connect to Telegram: ' + error.message);
