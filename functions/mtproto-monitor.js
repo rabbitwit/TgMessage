@@ -68,6 +68,45 @@ class MTProtoMonitor {
       } catch (error) {
         console.error('Authentication error:', error);
         
+        // 处理数据中心迁移
+        if (error.error_message && error.error_message.startsWith('PHONE_MIGRATE_')) {
+          const dcNumber = parseInt(error.error_message.split('_')[2]);
+          console.log(`Phone number requires migration to DC ${dcNumber}`);
+          
+          // 更新客户端连接到正确的数据中心
+          await this.mtproto.setDefaultDc(dcNumber);
+          
+          // 重试发送验证码
+          try {
+            const sentCode = await this.mtproto.call('auth.sendCode', {
+              phone_number: this.env.PHONE_NUMBER,
+              api_id: parseInt(this.env.MTPROTO_API_ID),
+              api_hash: this.env.MTPROTO_API_HASH,
+              settings: {
+                _: 'codeSettings',
+              },
+            });
+            console.log('Code sent after migration:', sentCode);
+            
+            if (this.env.PHONE_CODE) {
+              console.log('Signing in with code after migration');
+              const signInResult = await this.mtproto.call('auth.signIn', {
+                phone_number: this.env.PHONE_NUMBER,
+                phone_code: this.env.PHONE_CODE,
+                phone_code_hash: sentCode.phone_code_hash,
+              });
+              console.log('Sign in result after migration:', signInResult);
+              return true;
+            } else {
+              console.log('PHONE_CODE not provided, waiting for manual input');
+              return false;
+            }
+          } catch (retryError) {
+            console.error('Authentication error after migration:', retryError);
+            throw retryError;
+          }
+        }
+        
         // 如果需要密码
         if (error.error_message === 'SESSION_PASSWORD_NEEDED') {
           if (this.env.TWO_FACTOR_PASSWORD) {
