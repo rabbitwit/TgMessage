@@ -95,13 +95,23 @@ class MTProtoMonitor {
             
             if (this.env.PHONE_CODE) {
               console.log('Signing in with code from environment variable after migration');
-              const signInResult = await this.mtproto.call('auth.signIn', {
-                phone_number: this.env.PHONE_NUMBER,
-                phone_code: this.env.PHONE_CODE,
-                phone_code_hash: sentCode.phone_code_hash,
-              });
-              console.log('Sign in result after migration:', signInResult);
-              return true;
+              try {
+                const signInResult = await this.mtproto.call('auth.signIn', {
+                  phone_number: this.env.PHONE_NUMBER,
+                  phone_code: this.env.PHONE_CODE,
+                  phone_code_hash: sentCode.phone_code_hash,
+                });
+                console.log('Sign in result after migration:', signInResult);
+                return true;
+              } catch (signInError) {
+                if (signInError.error_message === 'PHONE_CODE_INVALID') {
+                  console.log('PHONE_CODE from environment is invalid, requesting new code via bot');
+                  // 通过机器人请求验证码输入
+                  await this.requestCodeViaBot(sentCode.phone_code_hash);
+                  return false;
+                }
+                  throw signInError;
+              }
             } else {
               console.log('PHONE_CODE not provided, waiting for manual input via bot');
               // 通过机器人请求验证码输入
@@ -112,6 +122,14 @@ class MTProtoMonitor {
             console.error('Authentication error after migration:', retryError);
             throw retryError;
           }
+        }
+        
+        // 如果验证码无效
+        if (error.error_message === 'PHONE_CODE_INVALID' && this.env.PHONE_CODE) {
+          console.log('PHONE_CODE from environment is invalid, requesting new code via bot');
+          // 通过机器人请求验证码输入
+          await this.requestCodeViaBot(sentCode.phone_code_hash);
+          return false;
         }
         
         // 如果需要密码
