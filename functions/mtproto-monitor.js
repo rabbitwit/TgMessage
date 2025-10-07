@@ -53,14 +53,30 @@ class MTProtoMonitor {
     // 设置事件处理器（避免重复绑定）
     if (!this.isListening) {
       console.log('Setting up event handlers');
+      
+      // 监听所有可能的更新事件
       this.mtproto.updates.on('updateShortMessage', this.handleNewMessage.bind(this));
       this.mtproto.updates.on('updateShortChatMessage', this.handleNewChatMessage.bind(this));
       this.mtproto.updates.on('updates', this.handleUpdates.bind(this));
+      this.mtproto.updates.on('updateNewMessage', this.handleNewMessageUpdate.bind(this));
+      this.mtproto.updates.on('any', this.handleAnyUpdate.bind(this));
+      
       this.isListening = true;
       console.log('Event handlers set up successfully');
     }
 
     console.log('MTProto monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
+  }
+
+  async handleAnyUpdate(update) {
+    console.log('Received any update:', JSON.stringify(update, null, 2));
+  }
+
+  async handleNewMessageUpdate(update) {
+    console.log('Received updateNewMessage:', JSON.stringify(update, null, 2));
+    if (update.message) {
+      await this.processMessage(update.message.message, update.message.from_id, update.message.to_id);
+    }
   }
 
   async handleNewMessage(update) {
