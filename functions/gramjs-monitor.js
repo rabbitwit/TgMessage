@@ -15,6 +15,9 @@ class GramjsMonitor {
       throw new Error('Missing or invalid MTPROTO_API_ID or MTPROTO_API_HASH');
     }
     
+    console.log('API ID:', apiId);
+    console.log('API Hash:', apiHash);
+    
     // 尝试从文件加载会话
     let sessionString = '';
     try {
