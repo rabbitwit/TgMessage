@@ -3,7 +3,7 @@
     "api/*.php": {
       "runtime": "vercel-php@0.5.2"
     },
-    "functions/start-monitor.func/index.js": {
+    "api/start-monitor/index.js": {
       "runtime": "@vercel/node@1.0.0"
     }
   },
@@ -18,7 +18,7 @@
     },
     {
       "src": "/startMonitor",
-      "dest": "/functions/start-monitor.func/index.js"
+      "dest": "/api/start-monitor/index.js"
     }
   ]
 }
