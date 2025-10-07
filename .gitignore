@@ -6,4 +6,5 @@
 .edgeone/*
 !.edgeone/project.json
 .tef_dist/*
-  
+
+/node_modules/

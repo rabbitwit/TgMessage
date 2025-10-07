@@ -2,6 +2,9 @@
   "functions": {
     "api/*.php": {
       "runtime": "vercel-php@0.5.2"
+    },
+    "functions/start-monitor.func/index.js": {
+      "runtime": "edge"
     }
   },
   "routes": [
@@ -12,6 +15,10 @@
     {
       "src": "/webhook",
       "dest": "/api/webhook.php"
+    },
+    {
+      "src": "/startMonitor",
+      "dest": "/functions/start-monitor.func/index.js"
     }
   ]
 }

@@ -155,3 +155,64 @@ webhook地址为：`https://你的域名/webhook`
 浏览器窗口打开：`https://你的域名/setwebhook?key=环境变量设置的KEY&url=你的webhook地址`
 
 `code` 返回 200 就是设置成功了~
+
+## 新功能：MTProto 消息监控
+
+除了基本的消息推送功能，本项目现在还支持使用 Telegram MTProto 协议监控群组消息关键词，并通过机器人发送通知。
+
+### 功能说明
+
+通过 MTProto 协议连接到 Telegram，监控指定群组中的关键词消息，当检测到包含关键词的消息时，会通过单独的机器人发送通知给您。
+
+### 环境变量配置
+
+要使用 MTProto 监控功能，需要添加以下环境变量：
+
+- `MTPROTO_API_ID`: 您的 Telegram API ID (从 https://my.telegram.org 获取)
+- `MTPROTO_API_HASH`: 您的 Telegram API Hash (从 https://my.telegram.org 获取)
+- `ADMIN_CHAT_ID`: 接收通知的管理员 Chat ID (通过与机器人对话发送 `/token` 命令获取)
+- `MONITOR_KEYWORDS`: (可选) 要监控的关键词列表，用逗号分隔 (例如: 重要,紧急,通知)
+- `MONITOR_CHAT_IDS`: (可选) 要监控的聊天室 ID 列表，用逗号分隔 (例如: -1001234567890,-1000987654321)
+
+### API 接口
+
+#### 启动监控
+
+```
+GET /startMonitor?key=<your_key>
+```
+
+参数说明：
+- `key`: 管理密钥 (与设置 webhook 时使用的相同)
+- 如果没有在环境变量中设置 `MONITOR_KEYWORDS` 和 `MONITOR_CHAT_IDS`，也可以通过查询参数传递：
+  - `keywords`: 要监控的关键词列表，用逗号分隔
+  - `chat_ids`: 要监控的聊天室 ID 列表，用逗号分隔
+
+示例：
+```
+https://your-domain.com/startMonitor?key=your_secret_key
+```
+
+或者使用查询参数：
+```
+https://your-domain.com/startMonitor?key=your_secret_key&keywords=重要,紧急,通知&chat_ids=-1001234567890,-1000987654321
+```
+
+### 使用说明
+
+1. 获取 Telegram API 凭据：
+   - 访问 https://my.telegram.org 并登录
+   - 创建一个新的应用程序以获取 `api_id` 和 `api_hash`
+
+2. 配置环境变量：
+   - 在 Vercel 或 EdgeOne Pages 的环境变量设置中添加所需的 MTProto 配置
+   - 确保设置了 `MTPROTO_API_ID`、`MTPROTO_API_HASH` 和 `ADMIN_CHAT_ID`
+   - (可选) 设置 `MONITOR_KEYWORDS` 和 `MONITOR_CHAT_IDS` 以避免每次都在 URL 中传递
+
+3. 启动监控：
+   - 调用 [startMonitor](file://F:\Development\TgMessage\functions\start-monitor.func\index.js#L1-L98) API 端点开始监控
+
+4. 获取 ADMIN_CHAT_ID：
+   - 部署项目后，与您创建的机器人对话
+   - 发送 `/token` 命令
+   - 机器人会回复一个加密字符串，这就是您的 chat_id (ADMIN_CHAT_ID)

@@ -1,0 +1,26 @@
+{
+  "name": "tgmessage",
+  "version": "1.0.0",
+  "description": "Telegram Message Push Bot with MTProto monitoring capability",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rabbitwit/TgMessage"
+  },
+  "keywords": [
+    "telegram",
+    "mtproto",
+    "message",
+    "notification"
+  ],
+  "author": "anhao",
+  "license": "MIT",
+  "dependencies": {
+    "@mtproto/core": "^6.2.0",
+    "telegraf": "^4.12.2"
+  }
+}
