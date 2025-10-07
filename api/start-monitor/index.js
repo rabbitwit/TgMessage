@@ -1,10 +1,9 @@
 import MTProtoMonitor from '../../functions/mtproto-monitor.js';
 
-export default async function startMonitor(request, env) {
+export default async function startMonitor(request, context) {
     console.log('Start Monitor function called');
     console.log('Request URL:', request.url);
     console.log('Request method:', request.method);
-    console.log('All env keys:', Object.keys(env));
     
     // 检查请求方法
     if (request.method !== 'GET') {
@@ -13,6 +12,10 @@ export default async function startMonitor(request, env) {
             status: 405
         });
     }
+    
+    // 获取环境变量
+    const env = context.env || {};
+    console.log('All env keys:', Object.keys(env));
     
     // 检查认证密钥
     const url = new URL(request.url, 'http://localhost');
