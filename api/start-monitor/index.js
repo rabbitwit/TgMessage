@@ -174,14 +174,17 @@ async function handleStartMonitoring(request, context) {
             monitorInstance = new MTProtoMonitor({...env, ...process.env});
         }
         
-        // 开始监控
-        console.log('Starting monitoring');
-        await monitorInstance.startMonitoring(keywords, chatIds);
+        // 启动监控（在后台运行）
+        console.log('Starting monitoring in background');
+        // 不等待 startMonitoring 完成，直接返回响应
+        monitorInstance.startMonitoring(keywords, chatIds).catch(error => {
+            console.error('Background monitoring error:', error);
+        });
         
-        console.log('Monitoring started successfully');
+        console.log('Monitoring start request processed');
         return new Response(JSON.stringify({ 
             code: 200, 
-            message: 'MTProto monitoring started successfully',
+            message: 'MTProto monitoring start request received. Authentication may require code submission via bot.',
             keywords: keywords,
             chat_ids: chatIds,
             instructions: 'If authentication is required, you will receive a message via the bot with instructions on how to provide the verification code.'

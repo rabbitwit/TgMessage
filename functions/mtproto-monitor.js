@@ -73,6 +73,32 @@ class MTProtoMonitor {
       } catch (error) {
         console.error('Authentication error:', error);
         
+        // 处理频率限制错误
+        if (error.error_message && error.error_message.startsWith('FLOOD_WAIT_')) {
+          const waitTime = parseInt(error.error_message.split('_')[2]);
+          console.log(`Hit rate limit. Need to wait ${waitTime} seconds before next attempt.`);
+          
+          // 通知管理员
+          if (this.env.ADMIN_CHAT_ID) {
+            const message = `
+MTProto 监控触发了 Telegram 的频率限制。
+请等待 ${Math.ceil(waitTime / 3600)} 小时后再尝试启动监控。
+错误信息: ${error.error_message}
+            `.trim();
+            
+            try {
+              await this.notificationBot.sendMessage({
+                text: message,
+                chat_id: this.env.ADMIN_CHAT_ID
+              });
+            } catch (notifyError) {
+              console.error('Failed to notify admin about rate limit:', notifyError);
+            }
+          }
+          
+          throw new Error(`Hit rate limit. Need to wait ${waitTime} seconds. Error: ${error.error_message}`);
+        }
+        
         // 处理数据中心迁移
         if (error.error_message && error.error_message.startsWith('PHONE_MIGRATE_')) {
           const dcNumber = parseInt(error.error_message.split('_')[2]);
@@ -110,7 +136,8 @@ class MTProtoMonitor {
                   await this.requestCodeViaBot(sentCode.phone_code_hash);
                   return false;
                 }
-                  throw signInError;
+                // 其他错误直接抛出
+                throw new Error('Authentication failed after migration: ' + signInError.message);
               }
             } else {
               console.log('PHONE_CODE not provided, waiting for manual input via bot');
@@ -120,7 +147,34 @@ class MTProtoMonitor {
             }
           } catch (retryError) {
             console.error('Authentication error after migration:', retryError);
-            throw retryError;
+            
+            // 处理重试时的频率限制错误
+            if (retryError.error_message && retryError.error_message.startsWith('FLOOD_WAIT_')) {
+              const waitTime = parseInt(retryError.error_message.split('_')[2]);
+              console.log(`Hit rate limit during migration. Need to wait ${waitTime} seconds.`);
+              
+              // 通知管理员
+              if (this.env.ADMIN_CHAT_ID) {
+                const message = `
+MTProto 监控在处理数据中心迁移时触发了 Telegram 的频率限制。
+请等待 ${Math.ceil(waitTime / 3600)} 小时后再尝试启动监控。
+错误信息: ${retryError.error_message}
+                `.trim();
+                
+                try {
+                  await this.notificationBot.sendMessage({
+                    text: message,
+                    chat_id: this.env.ADMIN_CHAT_ID
+                  });
+                } catch (notifyError) {
+                  console.error('Failed to notify admin about rate limit during migration:', notifyError);
+                }
+              }
+              
+              throw new Error(`Hit rate limit during migration. Need to wait ${waitTime} seconds. Error: ${retryError.error_message}`);
+            }
+            
+            throw new Error('Authentication failed during migration: ' + retryError.message);
           }
         }
         
@@ -149,7 +203,9 @@ class MTProtoMonitor {
             return false;
           }
         }
-        throw error;
+        
+        // 其他错误直接抛出
+        throw new Error('Authentication failed: ' + error.message);
       }
     } else {
       console.log('PHONE_NUMBER not provided, cannot authenticate. You need to provide your phone number to log into your Telegram account.');
@@ -213,6 +269,32 @@ MTProto 监控需要验证码才能登录您的 Telegram 账号。
     } catch (error) {
       console.error('Failed to sign in with provided code:', error);
       
+      // 处理频率限制错误
+      if (error.error_message && error.error_message.startsWith('FLOOD_WAIT_')) {
+        const waitTime = parseInt(error.error_message.split('_')[2]);
+        console.log(`Hit rate limit during sign in. Need to wait ${waitTime} seconds.`);
+        
+        // 通知管理员
+        if (this.env.ADMIN_CHAT_ID) {
+          const message = `
+MTProto 监控在提交验证码时触发了 Telegram 的频率限制。
+请等待 ${Math.ceil(waitTime / 3600)} 小时后再尝试。
+错误信息: ${error.error_message}
+          `.trim();
+          
+          try {
+            await this.notificationBot.sendMessage({
+              text: message,
+              chat_id: this.env.ADMIN_CHAT_ID
+            });
+          } catch (notifyError) {
+            console.error('Failed to notify admin about rate limit during sign in:', notifyError);
+          }
+        }
+        
+        throw new Error(`Hit rate limit during sign in. Need to wait ${waitTime} seconds. Error: ${error.error_message}`);
+      }
+      
       // 如果需要密码
       if (error.error_message === 'SESSION_PASSWORD_NEEDED') {
         if (this.env.TWO_FACTOR_PASSWORD) {
@@ -231,7 +313,8 @@ MTProto 监控需要验证码才能登录您的 Telegram 账号。
         }
       }
       
-      throw error;
+      // 其他错误直接抛出
+      throw new Error('Failed to sign in with provided code: ' + error.message);
     }
   }
 
@@ -265,6 +348,12 @@ MTProto 监控需要验证码才能登录您的 Telegram 账号。
       }
     } catch (error) {
       console.error('Failed to connect to Telegram:', error);
+      
+      // 处理频率限制错误
+      if (error.message && error.message.includes('FLOOD_WAIT')) {
+        throw new Error('Hit Telegram rate limit. ' + error.message);
+      }
+      
       throw new Error('Failed to connect to Telegram: ' + error.message);
     }
     
@@ -297,6 +386,13 @@ MTProto 监控需要验证码才能登录您的 Telegram 账号。
       } catch (error) {
         console.error('Error in update loop:', error);
         
+        // 处理频率限制错误
+        if (error.error_message && error.error_message.startsWith('FLOOD_WAIT_')) {
+          const waitTime = parseInt(error.error_message.split('_')[2]);
+          console.log(`Hit rate limit in update loop. Need to wait ${waitTime} seconds.`);
+          return;
+        }
+        
         // 如果出现认证错误，尝试重新认证
         if (error.error_message === 'AUTH_KEY_UNREGISTERED') {
           console.log('Session expired, attempting to re-authenticate...');
@@ -322,6 +418,14 @@ MTProto 监控需要验证码才能登录您的 Telegram 账号。
       console.log('Current updates state:', JSON.stringify(updates, null, 2));
     } catch (error) {
       console.error('Failed to get updates state:', error);
+      
+      // 处理频率限制错误
+      if (error.error_message && error.error_message.startsWith('FLOOD_WAIT_')) {
+        const waitTime = parseInt(error.error_message.split('_')[2]);
+        console.log(`Hit rate limit while getting updates. Need to wait ${waitTime} seconds.`);
+        throw error;
+      }
+      
       throw error;
     }
   }
