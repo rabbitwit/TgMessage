@@ -66,6 +66,19 @@ class MTProtoMonitor {
     }
 
     console.log('MTProto monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
+    
+    // 主动获取更新
+    this.getUpdates();
+  }
+  
+  async getUpdates() {
+    try {
+      console.log('Getting updates...');
+      const updates = await this.mtproto.call('updates.getState');
+      console.log('Current updates state:', JSON.stringify(updates, null, 2));
+    } catch (error) {
+      console.error('Failed to get updates state:', error);
+    }
   }
 
   async handleAnyUpdate(update) {
