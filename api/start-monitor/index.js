@@ -4,6 +4,7 @@ export default async function startMonitor(request, env) {
     console.log('Start Monitor function called');
     console.log('Request URL:', request.url);
     console.log('Request method:', request.method);
+    console.log('All env keys:', Object.keys(env));
     
     // 检查请求方法
     if (request.method !== 'GET') {
@@ -18,9 +19,14 @@ export default async function startMonitor(request, env) {
     const key = url.searchParams.get('key');
     
     console.log('Key from URL:', key);
-    console.log('Expected key:', env.key);
+    console.log('Expected key (env.key):', env.key);
+    console.log('Expected key (env.KEY):', env.KEY);
     
-    if (key !== env.key) {
+    // 尝试不同的键名
+    const envKey = env.key || env.KEY || env.Key;
+    console.log('Actual env key used:', envKey);
+    
+    if (key !== envKey) {
         return new Response(JSON.stringify({ code: 401, message: 'Unauthorized' }), {
             headers: { 'Content-Type': 'application/json' },
             status: 401
