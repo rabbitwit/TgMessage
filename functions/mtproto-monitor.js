@@ -64,21 +64,22 @@ class MTProtoMonitor {
   }
 
   async handleNewMessage(update) {
-    console.log('Received updateShortMessage:', update);
+    console.log('Received updateShortMessage:', JSON.stringify(update, null, 2));
     await this.processMessage(update.message, update.user_id);
   }
 
   async handleNewChatMessage(update) {
-    console.log('Received updateShortChatMessage:', update);
+    console.log('Received updateShortChatMessage:', JSON.stringify(update, null, 2));
     await this.processMessage(update.message, update.from_id, update.chat_id);
   }
 
   async handleUpdates(updates) {
-    console.log('Received updates:', updates);
+    console.log('Received updates:', JSON.stringify(updates, null, 2));
     if (updates.updates) {
       for (const update of updates.updates) {
         if (update._ === 'updateNewMessage' && update.message) {
           const message = update.message;
+          console.log('Processing updateNewMessage:', JSON.stringify(message, null, 2));
           await this.processMessage(message.message, message.from_id, message.to_id);
         }
       }
@@ -90,7 +91,7 @@ class MTProtoMonitor {
     
     // 检查是否是目标聊天室的消息
     if (this.chatIds && !this.chatIds.includes(fromId) && !this.chatIds.includes(chatId)) {
-      console.log('Message not from target chat, ignoring');
+      console.log('Message not from target chat, ignoring. Target chat IDs:', this.chatIds, 'From ID:', fromId, 'Chat ID:', chatId);
       return;
     }
 
