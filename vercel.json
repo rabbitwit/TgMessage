@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/*.php": {
-      "runtime": "vercel-php@0.6.0"
+      "runtime": "vercel-php@1.0.0"
     },
     "api/start-monitor/index.js": {
       "runtime": "@vercel/node@3.0.13"
