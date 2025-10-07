@@ -1,9 +1,24 @@
 import MTProtoMonitor from '../../functions/mtproto-monitor.js';
 
 export default async function startMonitor(request, env) {
+    console.log('Start Monitor function called');
+    console.log('Request URL:', request.url);
+    console.log('Request method:', request.method);
+    
+    // 检查请求方法
+    if (request.method !== 'GET') {
+        return new Response(JSON.stringify({ code: 405, message: 'Method Not Allowed' }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 405
+        });
+    }
+    
     // 检查认证密钥
     const url = new URL(request.url, 'http://localhost');
     const key = url.searchParams.get('key');
+    
+    console.log('Key from URL:', key);
+    console.log('Expected key:', env.key);
     
     if (key !== env.key) {
         return new Response(JSON.stringify({ code: 401, message: 'Unauthorized' }), {
@@ -13,6 +28,9 @@ export default async function startMonitor(request, env) {
     }
     
     // 检查必要的 MTProto 环境变量
+    console.log('MTPROTO_API_ID exists:', !!env.MTPROTO_API_ID);
+    console.log('MTPROTO_API_HASH exists:', !!env.MTPROTO_API_HASH);
+    
     if (!env.MTPROTO_API_ID || !env.MTPROTO_API_HASH) {
         return new Response(JSON.stringify({ 
             code: 400, 
@@ -28,20 +46,24 @@ export default async function startMonitor(request, env) {
         let keywords = [];
         if (env.MONITOR_KEYWORDS) {
             keywords = env.MONITOR_KEYWORDS.split(',');
+            console.log('Keywords from env:', keywords);
         } else {
             const keywordsParam = url.searchParams.get('keywords');
             if (keywordsParam) {
                 keywords = keywordsParam.split(',');
+                console.log('Keywords from URL:', keywords);
             }
         }
         
         let chatIds = [];
         if (env.MONITOR_CHAT_IDS) {
             chatIds = env.MONITOR_CHAT_IDS.split(',').map(id => parseInt(id));
+            console.log('Chat IDs from env:', chatIds);
         } else {
             const chatIdsParam = url.searchParams.get('chat_ids');
             if (chatIdsParam) {
                 chatIds = chatIdsParam.split(',').map(id => parseInt(id));
+                console.log('Chat IDs from URL:', chatIds);
             }
         }
         
@@ -67,11 +89,14 @@ export default async function startMonitor(request, env) {
         }
         
         // 创建 MTProto 监控实例
+        console.log('Creating MTProtoMonitor instance');
         const monitor = new MTProtoMonitor(env);
         
         // 开始监控
+        console.log('Starting monitoring');
         await monitor.startMonitoring(keywords, chatIds);
         
+        console.log('Monitoring started successfully');
         return new Response(JSON.stringify({ 
             code: 200, 
             message: 'MTProto monitoring started successfully',
