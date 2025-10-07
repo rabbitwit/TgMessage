@@ -62,7 +62,7 @@ class MTProtoMonitor {
           console.log('Sign in result:', signInResult);
           return true;
         } else {
-          console.log('PHONE_CODE not provided, waiting for manual input');
+          console.log('PHONE_CODE not provided, waiting for manual input or automatic retry');
           return false;
         }
       } catch (error) {
@@ -98,7 +98,7 @@ class MTProtoMonitor {
               console.log('Sign in result after migration:', signInResult);
               return true;
             } else {
-              console.log('PHONE_CODE not provided, waiting for manual input');
+              console.log('PHONE_CODE not provided, waiting for manual input or automatic retry');
               return false;
             }
           } catch (retryError) {
@@ -156,7 +156,7 @@ class MTProtoMonitor {
       console.log('Authenticating...');
       const authenticated = await this.authenticate();
       if (!authenticated) {
-        console.log('Authentication not completed, some features may not work');
+        console.log('Authentication not completed, some features may not work initially');
       } else {
         console.log('Authentication completed successfully');
       }
@@ -182,8 +182,34 @@ class MTProtoMonitor {
 
     console.log('MTProto monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
     
-    // 主动获取更新
-    this.getUpdates();
+    // 启动定期检查更新的循环
+    this.startUpdateLoop();
+  }
+  
+  async startUpdateLoop() {
+    // 定期检查更新状态，确保连接仍然有效
+    setInterval(async () => {
+      try {
+        await this.getUpdates();
+      } catch (error) {
+        console.error('Error in update loop:', error);
+        
+        // 如果出现认证错误，尝试重新认证
+        if (error.error_message === 'AUTH_KEY_UNREGISTERED') {
+          console.log('Session expired, attempting to re-authenticate...');
+          try {
+            const authenticated = await this.authenticate();
+            if (authenticated) {
+              console.log('Re-authentication successful');
+            } else {
+              console.log('Re-authentication failed, waiting for next cycle');
+            }
+          } catch (authError) {
+            console.error('Re-authentication error:', authError);
+          }
+        }
+      }
+    }, 30000); // 每30秒检查一次
   }
   
   async getUpdates() {
@@ -193,6 +219,7 @@ class MTProtoMonitor {
       console.log('Current updates state:', JSON.stringify(updates, null, 2));
     } catch (error) {
       console.error('Failed to get updates state:', error);
+      throw error;
     }
   }
 
