@@ -170,16 +170,19 @@ webhook地址为：`https://你的域名/webhook`
 
 - `MTPROTO_API_ID`: 您的 Telegram API ID (从 https://my.telegram.org 获取)
 - `MTPROTO_API_HASH`: 您的 Telegram API Hash (从 https://my.telegram.org 获取)
+- `PHONE_NUMBER`: 您的手机号码 (用于登录 Telegram 账户)
 - `ADMIN_CHAT_ID`: 接收通知的管理员 Chat ID (通过与机器人对话发送 `/token` 命令获取)
 - `MONITOR_KEYWORDS`: (可选) 要监控的关键词列表，用逗号分隔 (例如: 重要,紧急,通知)
 - `MONITOR_CHAT_IDS`: (可选) 要监控的聊天室 ID 列表，用逗号分隔 (例如: -1001234567890,-1000987654321)
+- `PHONE_CODE`: (可选) 手机验证码，用于自动完成登录
+- `TWO_FACTOR_PASSWORD`: (可选) 如果启用了两步验证，需要提供密码
 
 ### API 接口
 
 #### 启动监控
 
 ```
-GET /startMonitor?key=<your_key>
+GET /startGramjsMonitor?key=<your_key>
 ```
 
 参数说明：
@@ -190,12 +193,20 @@ GET /startMonitor?key=<your_key>
 
 示例：
 ```
-https://your-domain.com/startMonitor?key=your_secret_key
+https://your-domain.com/startGramjsMonitor?key=your_secret_key
 ```
 
 或者使用查询参数：
 ```
-https://your-domain.com/startMonitor?key=your_secret_key&keywords=重要,紧急,通知&chat_ids=-1001234567890,-1000987654321
+https://your-domain.com/startGramjsMonitor?key=your_secret_key&keywords=重要,紧急,通知&chat_ids=-1001234567890,-1000987654321
+```
+
+#### 提交验证码
+
+当需要手机验证码时，系统会通过机器人发送消息通知您。您需要通过以下接口提交验证码：
+
+```
+GET /startGramjsMonitor?key=<your_key>&action=code&code=<your_code>
 ```
 
 ### 使用说明
@@ -206,13 +217,19 @@ https://your-domain.com/startMonitor?key=your_secret_key&keywords=重要,紧急,
 
 2. 配置环境变量：
    - 在 Vercel 或 EdgeOne Pages 的环境变量设置中添加所需的 MTProto 配置
-   - 确保设置了 `MTPROTO_API_ID`、`MTPROTO_API_HASH` 和 `ADMIN_CHAT_ID`
+   - 确保设置了 `MTPROTO_API_ID`、`MTPROTO_API_HASH`、`PHONE_NUMBER` 和 `ADMIN_CHAT_ID`
    - (可选) 设置 `MONITOR_KEYWORDS` 和 `MONITOR_CHAT_IDS` 以避免每次都在 URL 中传递
 
 3. 启动监控：
-   - 调用 [startMonitor](file://F:\Development\TgMessage\functions\start-monitor.func\index.js#L1-L98) API 端点开始监控
+   - 调用 [startGramjsMonitor](file:///F:/Development/TgMessage/api/start-gramjs-monitor/index.js) API 端点开始监控
 
 4. 获取 ADMIN_CHAT_ID：
    - 部署项目后，与您创建的机器人对话
    - 发送 `/token` 命令
    - 机器人会回复一个加密字符串，这就是您的 chat_id (ADMIN_CHAT_ID)
+
+5. 首次认证：
+   - 首次运行时，系统会发送验证码到您的手机
+   - 您会收到机器人发送的消息，提示您输入验证码
+   - 按照提示通过 [/startGramjsMonitor](file:///F:/Development/TgMessage/api/start-gramjs-monitor/index.js) 的 `action=code` 参数提交验证码
+   - 认证信息会自动保存，下次启动时无需重新认证

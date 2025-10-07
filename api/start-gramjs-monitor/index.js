@@ -1,10 +1,10 @@
-import MTProtoMonitor from '../../functions/mtproto-monitor.js';
+import GramjsMonitor from '../../functions/gramjs-monitor.js';
 
-// 存储 MTProtoMonitor 实例
+// 存储 GramjsMonitor 实例
 let monitorInstance = null;
 
-export default async function startMonitor(request, context) {
-    console.log('Start Monitor function called');
+export default async function startGramjsMonitor(request, context) {
+    console.log('Start GramJS Monitor function called');
     console.log('Request URL:', request.url);
     console.log('Request method:', request.method);
     
@@ -56,11 +56,11 @@ export default async function startMonitor(request, context) {
                 });
         }
     } catch (error) {
-        console.error('Failed to process MTProto monitoring request:', error);
+        console.error('Failed to process GramJS monitoring request:', error);
         
         return new Response(JSON.stringify({ 
             code: 500, 
-            message: 'Failed to process MTProto monitoring request: ' + error.message,
+            message: 'Failed to process GramJS monitoring request: ' + error.message,
             error: error.message
         }, null, 2), {
             headers: { 'Content-Type': 'application/json' },
@@ -168,10 +168,10 @@ async function handleStartMonitoring(request, context) {
     }
     
     try {
-        // 创建或重用 MTProto 监控实例
-        console.log('Creating or reusing MTProtoMonitor instance');
+        // 创建或重用 GramjsMonitor 实例
+        console.log('Creating or reusing GramjsMonitor instance');
         if (!monitorInstance) {
-            monitorInstance = new MTProtoMonitor({...env, ...process.env});
+            monitorInstance = new GramjsMonitor({...env, ...process.env});
         }
         
         // 启动监控（在后台运行）
@@ -184,7 +184,7 @@ async function handleStartMonitoring(request, context) {
         console.log('Monitoring start request processed');
         return new Response(JSON.stringify({ 
             code: 200, 
-            message: 'MTProto monitoring start request received. Authentication may require code submission via bot.',
+            message: 'GramJS monitoring start request received. Authentication may require code submission via bot.',
             keywords: keywords,
             chat_ids: chatIds,
             instructions: 'If authentication is required, you will receive a message via the bot with instructions on how to provide the verification code.'
@@ -193,11 +193,11 @@ async function handleStartMonitoring(request, context) {
         });
         
     } catch (error) {
-        console.error('Failed to start MTProto monitoring:', error);
+        console.error('Failed to start GramJS monitoring:', error);
         
         return new Response(JSON.stringify({ 
             code: 500, 
-            message: 'Failed to start MTProto monitoring: ' + error.message,
+            message: 'Failed to start GramJS monitoring: ' + error.message,
             error: error.message
         }, null, 2), {
             headers: { 'Content-Type': 'application/json' },
