@@ -45,18 +45,19 @@ class GramjsMonitor {
     }
     
     // 检查是否已认证
-    if (await this.client.checkAuthorization()) {
+    try {
+      await this.client.getMe();
       console.log('Already authenticated');
       return true;
+    } catch (error) {
+      console.log('Not authenticated, need to authenticate');
     }
-    
-    console.log('Not authenticated, need to authenticate');
     
     if (this.env.PHONE_NUMBER) {
       try {
         console.log('Sending code to', this.env.PHONE_NUMBER);
         const phoneNumber = this.env.PHONE_NUMBER;
-        const sentCode = await this.client.sendCodeRequest(phoneNumber);
+        const sentCode = await this.client.sendCode(phoneNumber);
         console.log('Code sent:', sentCode);
         
         if (this.env.PHONE_CODE) {
