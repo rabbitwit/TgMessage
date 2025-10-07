@@ -1,5 +1,6 @@
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
+import { Api } from 'telegram';
 import Bot from './bot.js';
 import fs from 'fs';
 
@@ -8,15 +9,15 @@ class GramjsMonitor {
     this.env = env;
     
     // 检查必要的环境变量
-    const apiId = parseInt(env.MTPROTO_API_ID);
-    const apiHash = env.MTPROTO_API_HASH;
+    this.apiId = parseInt(env.MTPROTO_API_ID);
+    this.apiHash = env.MTPROTO_API_HASH;
     
-    if (isNaN(apiId) || !apiHash) {
+    if (isNaN(this.apiId) || !this.apiHash) {
       throw new Error('Missing or invalid MTPROTO_API_ID or MTPROTO_API_HASH');
     }
     
-    console.log('API ID:', apiId);
-    console.log('API Hash:', apiHash);
+    console.log('API ID:', this.apiId);
+    console.log('API Hash:', this.apiHash);
     
     // 尝试从文件加载会话
     let sessionString = '';
@@ -32,8 +33,8 @@ class GramjsMonitor {
     // 初始化 TelegramClient
     this.client = new TelegramClient(
       new StringSession(sessionString),
-      apiId,
-      apiHash,
+      this.apiId,
+      this.apiHash,
       { connectionRetries: 5 }
     );
     
@@ -60,17 +61,26 @@ class GramjsMonitor {
       try {
         console.log('Sending code to', this.env.PHONE_NUMBER);
         const phoneNumber = this.env.PHONE_NUMBER;
-        const sentCode = await this.client.sendCode(phoneNumber);
+        
+        // 使用 Api.auth.SendCode 方法
+        const sentCode = await this.client.invoke(new Api.auth.SendCode({
+          phoneNumber: phoneNumber,
+          apiId: this.apiId,
+          apiHash: this.apiHash,
+          settings: new Api.CodeSettings({})
+        }));
+        
         console.log('Code sent:', sentCode);
         
         if (this.env.PHONE_CODE) {
           console.log('Signing in with code from environment variable');
-          const user = await this.client.signIn(
-            phoneNumber, 
-            sentCode, 
-            this.env.PHONE_CODE
-          );
-          console.log('Signed in as:', user.firstName, user.lastName);
+          const user = await this.client.invoke(new Api.auth.SignIn({
+            phoneNumber: phoneNumber,
+            phoneCodeHash: sentCode.phoneCodeHash,
+            phoneCode: this.env.PHONE_CODE
+          }));
+          
+          console.log('Signed in as:', user);
           
           // 保存会话
           await this.saveSession();
@@ -87,11 +97,11 @@ class GramjsMonitor {
         if (error.errorMessage === 'SESSION_PASSWORD_NEEDED') {
           if (this.env.TWO_FACTOR_PASSWORD) {
             console.log('Two-factor authentication required');
-            const user = await this.client.signInWithPassword(
-              { errorMessage: 'SESSION_PASSWORD_NEEDED' },
-              this.env.TWO_FACTOR_PASSWORD
-            );
-            console.log('Signed in with password as:', user.firstName, user.lastName);
+            const user = await this.client.invoke(new Api.auth.CheckPassword({
+              password: this.env.TWO_FACTOR_PASSWORD
+            }));
+            
+            console.log('Signed in with password as:', user);
             
             // 保存会话
             await this.saveSession();
@@ -160,12 +170,13 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
     
     try {
       console.log('Signing in with manually provided code');
-      const user = await this.client.signIn(
-        this.pendingAuth.phone_number,
-        { phoneCodeHash: this.pendingAuth.phone_code_hash },
-        phoneCode
-      );
-      console.log('Signed in as:', user.firstName, user.lastName);
+      const user = await this.client.invoke(new Api.auth.SignIn({
+        phoneNumber: this.pendingAuth.phone_number,
+        phoneCodeHash: this.pendingAuth.phone_code_hash,
+        phoneCode: phoneCode
+      }));
+      
+      console.log('Signed in as:', user);
       
       this.pendingAuth = null;
       
@@ -178,11 +189,11 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
       if (error.errorMessage === 'SESSION_PASSWORD_NEEDED') {
         if (this.env.TWO_FACTOR_PASSWORD) {
           console.log('Two-factor authentication required');
-          const user = await this.client.signInWithPassword(
-            { errorMessage: 'SESSION_PASSWORD_NEEDED' },
-            this.env.TWO_FACTOR_PASSWORD
-          );
-          console.log('Signed in with password as:', user.firstName, user.lastName);
+          const user = await this.client.invoke(new Api.auth.CheckPassword({
+            password: this.env.TWO_FACTOR_PASSWORD
+          }));
+          
+          console.log('Signed in with password as:', user);
           
           // 保存会话
           await this.saveSession();
