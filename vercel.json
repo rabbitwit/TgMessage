@@ -4,7 +4,7 @@
       "runtime": "vercel-php@0.5.2"
     },
     "functions/start-monitor.func/index.js": {
-      "runtime": "vercel-edge@1.0.0"
+      "runtime": "@vercel/node"
     }
   },
   "routes": [
