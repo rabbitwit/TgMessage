@@ -2,7 +2,7 @@ import MTProtoMonitor from '../../functions/mtproto-monitor.js';
 
 export default async function startMonitor(request, env) {
     // 检查认证密钥
-    const url = new URL(request.url);
+    const url = new URL(request.url, 'http://localhost');
     const key = url.searchParams.get('key');
     
     if (key !== env.key) {
