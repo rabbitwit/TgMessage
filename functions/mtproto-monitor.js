@@ -15,7 +15,7 @@ class MTProtoMonitor {
       api_id: apiId,
       api_hash: env.MTPROTO_API_HASH,
       storageOptions: {
-        path: './mtproto-session.json',
+        path: '/tmp/mtproto-session.json',
       },
     });
 
