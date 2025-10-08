@@ -394,11 +394,15 @@ Message: ${messageText}
     if (this.env.ADMIN_CHAT_ID) {
       try {
         console.log('Sending message via bot...');
+        console.log('ADMIN_CHAT_ID:', this.env.ADMIN_CHAT_ID);
         const result = await this.notificationBot.sendMessage({
           text: notificationText,
           chat_id: this.env.ADMIN_CHAT_ID
         });
-        console.log('Notification sent successfully:', result);
+        console.log('Notification sent result:', result);
+        if (!result.ok) {
+          console.error('Failed to send notification:', result.description);
+        }
         return result;
       } catch (error) {
         console.error('Failed to send notification:', error);
