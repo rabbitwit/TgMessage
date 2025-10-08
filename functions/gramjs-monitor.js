@@ -287,6 +287,12 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
       // 设置事件处理器
       console.log('Setting up event handlers');
       this.client.addEventHandler(this.handleNewMessage.bind(this));
+      
+      // 添加更多事件处理器以捕获更多类型的消息
+      this.client.addEventHandler((update) => {
+        console.log('Received update:', JSON.stringify(update, null, 2));
+      });
+      
       console.log('Event handlers set up successfully');
       
       console.log('GramJS monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
@@ -298,6 +304,8 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
   
   async handleNewMessage(event) {
     try {
+      console.log('Received event:', JSON.stringify(event, null, 2));
+      
       if (event.message) {
         const messageText = event.message.text || '';
         const chatId = event.message.chatId ? event.message.chatId.valueOf() : null;
@@ -309,9 +317,12 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         if (this.chatIds && 
             !this.chatIds.includes(chatId) && 
             !this.chatIds.includes(userId)) {
-          console.log('Message not from target chat, ignoring.');
+          console.log('Message not from target chat, ignoring. Target chat IDs:', this.chatIds);
           return;
         }
+        
+        console.log('Message is from target chat, checking for keywords');
+        console.log('Target keywords:', this.keywords);
         
         // 检查是否包含关键词
         if (this.keywords && this.keywords.some(keyword => {
@@ -324,6 +335,8 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         } else {
           console.log('No keywords found in message');
         }
+      } else {
+        console.log('Event has no message content');
       }
     } catch (error) {
       console.error('Error processing message:', error);
