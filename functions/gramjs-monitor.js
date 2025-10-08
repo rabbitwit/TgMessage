@@ -349,6 +349,7 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         }
         
         console.log('Processing message:', { messageText, chatId, userId });
+        console.log('Target chat IDs from config:', this.chatIds);
         
         // 检查是否是目标聊天室的消息
         if (this.chatIds && 
@@ -375,6 +376,7 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         }
       } else {
         console.log('Event has no message content');
+        console.log('Event details:', JSON.stringify(event, null, 2));
       }
     } catch (error) {
       console.error('Error processing message:', error);
