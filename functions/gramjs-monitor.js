@@ -288,11 +288,6 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
       console.log('Setting up event handlers');
       this.client.addEventHandler(this.handleNewMessage.bind(this));
       
-      // 添加更多事件处理器以捕获更多类型的消息
-      this.client.addEventHandler((update) => {
-        console.log('Received update:', JSON.stringify(update, null, 2));
-      });
-      
       console.log('Event handlers set up successfully');
       
       console.log('GramJS monitoring started with keywords:', keywords, 'and chat IDs:', chatIds);
@@ -304,8 +299,6 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
   
   async handleNewMessage(event) {
     try {
-      console.log('Received event:', JSON.stringify(event, null, 2));
-      
       // 处理不同类型的事件
       let message = null;
       if (event.message) {
@@ -378,7 +371,7 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
           await this.sendNotification(messageText, userId, chatId);
         } else {
           console.log('No keywords found in message');
-          console.log('Message text was:', JSON.stringify(messageText));
+          console.log('Message text was:', messageText);
         }
       } else {
         console.log('Event has no message content');
