@@ -19,15 +19,21 @@ class GramjsMonitor {
     console.log('API ID:', this.apiId);
     console.log('API Hash:', this.apiHash);
     
-    // 尝试从文件加载会话
-    let sessionString = '';
-    try {
-      if (fs.existsSync('/tmp/gramjs-session.txt')) {
-        sessionString = fs.readFileSync('/tmp/gramjs-session.txt');
-        console.log('Loaded existing session from file');
+    // 检查是否提供了预生成的 session 字符串
+    let sessionString = env.MTPROTO_SESSION || '';
+    
+    // 如果没有预生成的 session，尝试从文件加载
+    if (!sessionString) {
+      try {
+        if (fs.existsSync('/tmp/gramjs-session.txt')) {
+          sessionString = fs.readFileSync('/tmp/gramjs-session.txt', 'utf8');
+          console.log('Loaded existing session from file');
+        }
+      } catch (error) {
+        console.log('No existing session found, will create new one');
       }
-    } catch (error) {
-      console.log('No existing session found, will create new one');
+    } else {
+      console.log('Using pre-generated session from environment variable');
     }
     
     // 初始化 TelegramClient
@@ -57,7 +63,8 @@ class GramjsMonitor {
       console.log('Not authenticated, need to authenticate');
     }
     
-    if (this.env.PHONE_NUMBER) {
+    // 如果提供了 PHONE_CODE，尝试自动认证
+    if (this.env.PHONE_NUMBER && this.env.PHONE_CODE) {
       try {
         console.log('Sending code to', this.env.PHONE_NUMBER);
         const phoneNumber = this.env.PHONE_NUMBER;
@@ -72,24 +79,62 @@ class GramjsMonitor {
         
         console.log('Code sent:', sentCode);
         
-        if (this.env.PHONE_CODE) {
-          console.log('Signing in with code from environment variable');
-          const user = await this.client.invoke(new Api.auth.SignIn({
-            phoneNumber: phoneNumber,
-            phoneCodeHash: sentCode.phoneCodeHash,
-            phoneCode: this.env.PHONE_CODE
-          }));
-          
-          console.log('Signed in as:', user);
-          
-          // 保存会话
-          await this.saveSession();
-          return true;
-        } else {
-          console.log('PHONE_CODE not provided, waiting for manual input via bot');
-          await this.requestCodeViaBot(sentCode);
-          return false;
+        console.log('Signing in with code from environment variable');
+        const user = await this.client.invoke(new Api.auth.SignIn({
+          phoneNumber: phoneNumber,
+          phoneCodeHash: sentCode.phoneCodeHash,
+          phoneCode: this.env.PHONE_CODE
+        }));
+        
+        console.log('Signed in as:', user);
+        
+        // 保存会话
+        await this.saveSession();
+        return true;
+      } catch (error) {
+        console.error('Authentication error:', error);
+        
+        // 如果需要密码
+        if (error.errorMessage === 'SESSION_PASSWORD_NEEDED') {
+          if (this.env.TWO_FACTOR_PASSWORD) {
+            console.log('Two-factor authentication required');
+            const user = await this.client.invoke(new Api.auth.CheckPassword({
+              password: this.env.TWO_FACTOR_PASSWORD
+            }));
+            
+            console.log('Signed in with password as:', user);
+            
+            // 保存会话
+            await this.saveSession();
+            return true;
+          } else {
+            console.log('TWO_FACTOR_PASSWORD not provided');
+            return false;
+          }
         }
+        
+        throw error;
+      }
+    }
+    
+    // 否则通过机器人请求验证码
+    if (this.env.PHONE_NUMBER) {
+      try {
+        console.log('Sending code to', this.env.PHONE_NUMBER);
+        const phoneNumber = this.env.PHONE_NUMBER;
+        
+        // 使用 Api.auth.SendCode 方法
+        const sentCode = await this.client.invoke(new Api.auth.SendCode({
+          phoneNumber: phoneNumber,
+          apiId: this.apiId,
+          apiHash: this.apiHash,
+          settings: new Api.CodeSettings({})
+        }));
+        
+        console.log('Code sent:', sentCode);
+        console.log('PHONE_CODE not provided, waiting for manual input via bot');
+        await this.requestCodeViaBot(sentCode);
+        return false;
       } catch (error) {
         console.error('Authentication error:', error);
         
@@ -125,6 +170,9 @@ class GramjsMonitor {
       const sessionString = this.client.session.save();
       fs.writeFileSync('/tmp/gramjs-session.txt', sessionString, 'utf8');
       console.log('Session saved to file');
+      
+      // 如果需要，也可以输出 session 字符串供手动保存
+      console.log('Session string (for manual saving):', sessionString);
     } catch (error) {
       console.error('Failed to save session:', error);
     }
@@ -142,6 +190,8 @@ class GramjsMonitor {
 GramJS 监控需要验证码才能登录您的 Telegram 账号。
 请回复此消息，格式为: code<空格>验证码
 例如: code 123456
+
+如果您已经手动获取了 session 字符串，可以将其设置为 MTPROTO_SESSION 环境变量，这样就不需要手机验证了。
       `.trim();
       
       try {
@@ -300,6 +350,9 @@ Message: ${messageText}
         console.log('Notification sent successfully:', result);
       } catch (error) {
         console.error('Failed to send notification:', error);
+        // 添加更多调试信息
+        console.error('ADMIN_CHAT_ID:', this.env.ADMIN_CHAT_ID);
+        console.error('Notification text:', notificationText);
       }
     } else {
       console.log('No ADMIN_CHAT_ID configured, cannot send notification');
