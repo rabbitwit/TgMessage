@@ -321,31 +321,31 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         // 提取用户ID
         if (message.fromId) {
           if (message.fromId.userId) {
-            userId = parseInt(message.fromId.userId);
+            userId = parseInt(message.fromId.userId.toString());
           } else if (message.fromId.className === 'PeerUser') {
-            userId = parseInt(message.fromId.userId);
+            userId = parseInt(message.fromId.userId.toString());
           }
         }
         
         // 提取聊天ID
         if (message.peerId) {
           if (message.peerId.chatId) {
-            chatId = -parseInt(message.peerId.chatId); // 聊天ID通常为负数
+            chatId = -parseInt(message.peerId.chatId.toString()); // 聊天ID通常为负数
           } else if (message.peerId.channelId) {
-            chatId = -1000000000000 - parseInt(message.peerId.channelId); // 频道ID转换
+            chatId = -1000000000000 - parseInt(message.peerId.channelId.toString()); // 频道ID转换
           } else if (message.peerId.userId) {
-            chatId = parseInt(message.peerId.userId);
+            chatId = parseInt(message.peerId.userId.toString());
           }
         }
         
         // 如果peerId是聊天，直接使用
         if (!chatId && message.peerId && message.peerId.className === 'PeerChat') {
-          chatId = -parseInt(message.peerId.chatId);
+          chatId = -parseInt(message.peerId.chatId.toString());
         }
         
         // 如果peerId是频道，进行转换
         if (!chatId && message.peerId && message.peerId.className === 'PeerChannel') {
-          chatId = -1000000000000 - parseInt(message.peerId.channelId);
+          chatId = -1000000000000 - parseInt(message.peerId.channelId.toString());
         }
         
         console.log('Processing message:', { messageText, chatId, userId });
@@ -399,11 +399,13 @@ Message: ${messageText}
           chat_id: this.env.ADMIN_CHAT_ID
         });
         console.log('Notification sent successfully:', result);
+        return result;
       } catch (error) {
         console.error('Failed to send notification:', error);
         // 添加更多调试信息
         console.error('ADMIN_CHAT_ID:', this.env.ADMIN_CHAT_ID);
         console.error('Notification text:', notificationText);
+        throw error;
       }
     } else {
       console.log('No ADMIN_CHAT_ID configured, cannot send notification');
