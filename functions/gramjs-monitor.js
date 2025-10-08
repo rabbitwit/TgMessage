@@ -391,28 +391,37 @@ Chat: ${targetChatId}
 Message: ${messageText}
     `.trim();
     
+    console.log('ADMIN_CHAT_ID from env:', this.env.ADMIN_CHAT_ID);
+    
     if (this.env.ADMIN_CHAT_ID) {
       try {
+        // 解密 ADMIN_CHAT_ID
+        const decryptedChatId = this.notificationBot.decryption(this.env.ADMIN_CHAT_ID);
+        console.log('Decrypted ADMIN_CHAT_ID:', decryptedChatId);
+        
         console.log('Sending message via bot...');
-        console.log('ADMIN_CHAT_ID:', this.env.ADMIN_CHAT_ID);
         const result = await this.notificationBot.sendMessage({
           text: notificationText,
-          chat_id: this.env.ADMIN_CHAT_ID
+          chat_id: decryptedChatId
         });
         console.log('Notification sent result:', result);
         if (!result.ok) {
           console.error('Failed to send notification:', result.description);
+          console.error('Please check that:');
+          console.error('1. ADMIN_CHAT_ID is set correctly and can be decrypted');
+          console.error('2. The bot has been started by the user (send /start to the bot)');
+          console.error('3. The bot is added to the group if ADMIN_CHAT_ID is a group ID');
         }
         return result;
       } catch (error) {
-        console.error('Failed to send notification:', error);
-        // 添加更多调试信息
+        console.error('Exception while sending notification:', error);
         console.error('ADMIN_CHAT_ID:', this.env.ADMIN_CHAT_ID);
         console.error('Notification text:', notificationText);
         throw error;
       }
     } else {
       console.log('No ADMIN_CHAT_ID configured, cannot send notification');
+      console.log('Please set ADMIN_CHAT_ID environment variable to receive notifications');
     }
   }
 }
