@@ -306,10 +306,54 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
     try {
       console.log('Received event:', JSON.stringify(event, null, 2));
       
+      // 处理不同类型的事件
+      let message = null;
       if (event.message) {
-        const messageText = event.message.text || '';
-        const chatId = event.message.chatId ? event.message.chatId.valueOf() : null;
-        const userId = event.message.senderId ? event.message.senderId.valueOf() : null;
+        message = event.message;
+      } else if (event._ === 'updateNewMessage' && event.message) {
+        message = event.message;
+      } else if (event.className === 'UpdateNewMessage' && event.message) {
+        message = event.message;
+      } else if (event.className === 'UpdateNewChannelMessage' && event.message) {
+        message = event.message;
+      }
+      
+      if (message) {
+        // 正确提取消息文本
+        const messageText = message.message || message.text || '';
+        // 正确提取聊天ID和用户ID
+        let chatId = null;
+        let userId = null;
+        
+        // 提取用户ID
+        if (message.fromId) {
+          if (message.fromId.userId) {
+            userId = parseInt(message.fromId.userId);
+          } else if (message.fromId.className === 'PeerUser') {
+            userId = parseInt(message.fromId.userId);
+          }
+        }
+        
+        // 提取聊天ID
+        if (message.peerId) {
+          if (message.peerId.chatId) {
+            chatId = -parseInt(message.peerId.chatId); // 聊天ID通常为负数
+          } else if (message.peerId.channelId) {
+            chatId = -1000000000000 - parseInt(message.peerId.channelId); // 频道ID转换
+          } else if (message.peerId.userId) {
+            chatId = parseInt(message.peerId.userId);
+          }
+        }
+        
+        // 如果peerId是聊天，直接使用
+        if (!chatId && message.peerId && message.peerId.className === 'PeerChat') {
+          chatId = -parseInt(message.peerId.chatId);
+        }
+        
+        // 如果peerId是频道，进行转换
+        if (!chatId && message.peerId && message.peerId.className === 'PeerChannel') {
+          chatId = -1000000000000 - parseInt(message.peerId.channelId);
+        }
         
         console.log('Processing message:', { messageText, chatId, userId });
         
@@ -317,7 +361,7 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
         if (this.chatIds && 
             !this.chatIds.includes(chatId) && 
             !this.chatIds.includes(userId)) {
-          console.log('Message not from target chat, ignoring. Target chat IDs:', this.chatIds);
+          console.log('Message not from target chat, ignoring. Target chat IDs:', this.chatIds, 'Chat ID:', chatId, 'User ID:', userId);
           return;
         }
         
@@ -334,6 +378,7 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
           await this.sendNotification(messageText, userId, chatId);
         } else {
           console.log('No keywords found in message');
+          console.log('Message text was:', JSON.stringify(messageText));
         }
       } else {
         console.log('Event has no message content');
