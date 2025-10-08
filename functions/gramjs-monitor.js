@@ -23,7 +23,7 @@ class GramjsMonitor {
     let sessionString = '';
     try {
       if (fs.existsSync('/tmp/gramjs-session.txt')) {
-        sessionString = fs.readFileSync('/tmp/gramjs-session.txt', 'utf8');
+        sessionString = fs.readFileSync('/tmp/gramjs-session.txt');
         console.log('Loaded existing session from file');
       }
     } catch (error) {
