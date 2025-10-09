@@ -1,24 +1,30 @@
 {
   "functions": {
-    "api/*.php": {
+    "api/start-gramjs-monitor/index.js": {
+      "runtime": "@vercel/node@3.0.13",
+      "maxDuration": 60
+    },
+    "api/keep-monitoring-alive.js": {
+      "runtime": "@vercel/node@3.0.13",
+      "maxDuration": 60
+    },
+    "api/webhook.php": {
       "runtime": "vercel-php@0.7.1"
     },
-    "api/start-gramjs-monitor/index.js": {
-      "runtime": "@vercel/node@3.0.13"
+    "api/Bot.php": {
+      "runtime": "vercel-php@0.7.1"
+    },
+    "api/setWebHook.php": {
+      "runtime": "vercel-php@0.7.1"
+    },
+    "api/index.php": {
+      "runtime": "vercel-php@0.7.1"
     }
   },
-  "routes": [
+  "crons": [
     {
-      "src": "/setWebHook",
-      "dest": "/api/setWebHook.php"
-    },
-    {
-      "src": "/webhook",
-      "dest": "/api/webhook.php"
-    },
-    {
-      "src": "/startGramjsMonitor",
-      "dest": "/api/start-gramjs-monitor/index.js"
+      "path": "/api/keep-monitoring-alive",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

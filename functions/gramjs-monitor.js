@@ -348,17 +348,17 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
           chatId = -1000000000000 - parseInt(message.peerId.channelId.toString());
         }
         
-        console.log('Processing message:', { messageText, chatId, userId });
-        console.log('Target chat IDs from config:', this.chatIds);
-        
         // 检查是否是目标聊天室的消息
         if (this.chatIds && 
             !this.chatIds.includes(chatId) && 
             !this.chatIds.includes(userId)) {
-          console.log('Message not from target chat, ignoring. Target chat IDs:', this.chatIds, 'Chat ID:', chatId, 'User ID:', userId);
+          // 不记录被过滤的消息，减少日志噪音
           return;
         }
         
+        // 只记录来自目标聊天室的消息
+        console.log('Processing message:', { messageText, chatId, userId });
+        console.log('Target chat IDs from config:', this.chatIds);
         console.log('Message is from target chat, checking for keywords');
         console.log('Target keywords:', this.keywords);
         
@@ -375,8 +375,28 @@ GramJS 监控需要验证码才能登录您的 Telegram 账号。
           console.log('Message text was:', messageText);
         }
       } else {
-        console.log('Event has no message content');
-        console.log('Event details:', JSON.stringify(event, null, 2));
+        // 不记录没有消息内容的事件，减少日志噪音
+        // 只在需要调试时启用以下代码
+        /*
+        try {
+          // 尝试安全地记录事件信息，避免循环引用
+          console.log('Event details:', JSON.stringify(event, (key, value) => {
+            // 避免序列化具有循环引用的对象
+            if (typeof value === 'object' && value !== null) {
+              if (value.constructor && value.constructor.name) {
+                // 只记录构造函数名称而不是整个对象
+                if (value.constructor.name === 'TelegramClient' || 
+                    value.constructor.name === 'Object' && key === 'client') {
+                  return `[${value.constructor.name}]`;
+                }
+              }
+            }
+            return value;
+          }, 2));
+        } catch (logError) {
+          console.log('Could not log event details due to circular references');
+        }
+        */
       }
     } catch (error) {
       console.error('Error processing message:', error);
