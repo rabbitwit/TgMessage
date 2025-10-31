@@ -50,32 +50,38 @@ let BOT_USERNAME = '';
 // 初始化机器人信息
 async function initializeBot() {
     try {
+        console.log('开始初始化 Telegram Bot...');
+        
         if (!process.env.TELEGRAM_BOT_TOKEN) {
-            console.error('TELEGRAM_BOT_TOKEN is not set');
+            console.error('错误: TELEGRAM_BOT_TOKEN 环境变量未设置');
             return;
         }
         
+        console.log('创建 Bot 实例...');
         bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
         
+        console.log('获取 Bot 信息...');
         const botInfo = await fetchBotInfo(process.env.TELEGRAM_BOT_TOKEN);
         BOT_USER_ID_NORMALIZED = botInfo.BOT_USER_ID_NORMALIZED;
         BOT_USERNAME = botInfo.BOT_USERNAME;
-        console.log('Bot initialized:', BOT_USERNAME);
+        console.log('Bot 初始化成功:', BOT_USERNAME);
     } catch (error) {
-        console.error('Failed to initialize bot:', error);
+        console.error('Bot 初始化失败:', error);
     }
 }
 
 // 处理消息的主函数
 function setupBotHandlers() {
     if (!bot) {
-        console.error('Bot is not initialized');
+        console.error('Bot 实例未初始化，无法设置处理器');
         return;
     }
     
+    console.log('设置 Bot 消息处理器...');
+    
     bot.on('message', async (ctx) => {
         try {
-            console.log('Received message:', ctx.message);
+            console.log('收到消息:', JSON.stringify(ctx.message, null, 2));
             
             // 获取环境变量配置
             const MONITOR_CHAT_IDS_RAW = process.env.MONITOR_CHAT_IDS;
@@ -85,6 +91,16 @@ function setupBotHandlers() {
             const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
             const TARGET_USER_IDS_RAW = process.env.TARGET_USER_IDS;
             const USER_KEYWORDS_RAW = process.env.USER_KEYWORDS;
+            
+            console.log('环境变量配置:', {
+                hasMonitorChatIds: !!MONITOR_CHAT_IDS_RAW,
+                hasNotMonitorChatIds: !!NOT_MONITOR_CHAT_IDS_RAW,
+                hasMonitorKeywords: !!MONITOR_KEYWORDS_RAW,
+                hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
+                hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN,
+                hasTargetUserIds: !!TARGET_USER_IDS_RAW,
+                hasUserKeywords: !!USER_KEYWORDS_RAW
+            });
             
             // 解析并规范化监控配置
             const monitorChatIds = MONITOR_CHAT_IDS_RAW ? MONITOR_CHAT_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean) : [];
@@ -107,22 +123,30 @@ function setupBotHandlers() {
             const fromUserId = ctx.from.id.toString();
             const normalizedFromUserId = normalizeId(fromUserId);
             
+            console.log('消息详情:', {
+                chatId,
+                normalizedChatId,
+                fromUserId,
+                normalizedFromUserId,
+                botUserId: BOT_USER_ID_NORMALIZED
+            });
+            
             // 检查是否是机器人自己发送的消息（避免循环）
             if (BOT_USER_ID_NORMALIZED && normalizedFromUserId === BOT_USER_ID_NORMALIZED) {
-                console.log('Skipping message sent by bot itself');
+                console.log('跳过机器人自己发送的消息');
                 return;
             }
             
             // 检查是否在监控列表中
             if (normalizedMonitorIds.length > 0 && !normalizedMonitorIds.includes(normalizedChatId)) {
-                console.log(`Chat ${chatId} not in monitor list, skipping`);
+                console.log(`聊天 ${chatId} 不在监控列表中，跳过处理`);
                 return;
             }
             
             // 检查是否在排除列表中
             const notMonitorChatIds = parseChatIds(NOT_MONITOR_CHAT_IDS_RAW);
             if (notMonitorChatIds.includes(normalizedChatId)) {
-                console.log(`Chat ${chatId} is in exclude list, skipping`);
+                console.log(`聊天 ${chatId} 在排除列表中，跳过处理`);
                 return;
             }
             
@@ -133,8 +157,14 @@ function setupBotHandlers() {
                     messageText.toLowerCase().includes(keyword)
                 );
                 
+                console.log('关键词匹配结果:', {
+                    messageText,
+                    keywords: monitorKeywordsNormalized,
+                    hasKeyword
+                });
+                
                 if (!hasKeyword) {
-                    console.log('Message does not match any keywords, skipping');
+                    console.log('消息不包含任何监控关键词，跳过处理');
                     return;
                 }
             }
@@ -142,7 +172,7 @@ function setupBotHandlers() {
             // 检查是否是通知群组中的消息，避免循环
             const normalizedNotificationChatId = normalizeId(NOTIFICATION_CHAT_ID);
             if (normalizedNotificationChatId && normalizedChatId === normalizedNotificationChatId) {
-                console.log('Skipping message from notification chat to avoid loop');
+                console.log('跳过来自通知群组的消息以避免循环');
                 return;
             }
             
@@ -153,61 +183,77 @@ function setupBotHandlers() {
                     const fromUser = ctx.from.first_name || ctx.from.username || 'Unknown';
                     const messageText = ctx.message.text || '[Non-text message]';
                     
+                    console.log('发送通知到:', NOTIFICATION_CHAT_ID);
                     await ctx.reply(`转发消息来自: ${chatTitle}\n发送者: ${fromUser}\n内容: ${messageText}`, {
                         chat_id: NOTIFICATION_CHAT_ID
                     });
-                    console.log('Notification sent successfully');
+                    console.log('通知发送成功');
                 } catch (error) {
-                    console.error('Failed to send notification:', error);
+                    console.error('发送通知失败:', error);
                 }
             }
             
             // 响应用户
             await ctx.reply('消息已收到并处理');
+            console.log('消息处理完成');
         } catch (error) {
-            console.error('Error processing message:', error);
+            console.error('处理消息时出错:', error);
             // 不向用户发送错误信息，避免循环
         }
     });
 
     // 错误处理
     bot.catch((err) => {
-        console.error('Bot error:', err);
+        console.error('Bot 错误:', err);
     });
+    
+    console.log('Bot 消息处理器设置完成');
 }
 
 // 在模块加载时初始化机器人
+console.log('模块加载中...');
 if (process.env.TELEGRAM_BOT_TOKEN) {
+    console.log('检测到 TELEGRAM_BOT_TOKEN，开始初始化 Bot...');
     initializeBot().then(() => {
         setupBotHandlers();
     }).catch(console.error);
 } else {
-    console.log('TELEGRAM_BOT_TOKEN not set, bot initialization skipped');
+    console.log('未检测到 TELEGRAM_BOT_TOKEN，跳过 Bot 初始化');
 }
 
 // 导出 Vercel 处理函数
 export default async (req, res) => {
+    console.log('收到 HTTP 请求:', {
+        method: req.method,
+        url: req.url,
+        headers: req.headers
+    });
+    
     if (!bot) {
         // 如果 bot 还未初始化，尝试初始化
+        console.log('Bot 未初始化，尝试初始化...');
         await initializeBot();
         setupBotHandlers();
     }
     
     if (req.method === 'POST') {
         try {
+            console.log('处理 Telegram Webhook 请求，更新内容:', JSON.stringify(req.body, null, 2));
             // 处理 Telegram Webhook 请求
             if (bot) {
                 await bot.handleUpdate(req.body);
+                console.log('更新处理完成');
                 res.status(200).send('OK');
             } else {
-                console.error('Bot is not initialized');
+                console.error('Bot 未初始化');
                 res.status(500).send('Bot not initialized');
             }
         } catch (error) {
-            console.error('Error handling update:', error);
+            console.error('处理更新时出错:', error);
             res.status(500).send('Error processing update');
         }
     } else {
+        console.log('不支持的 HTTP 方法:', req.method);
         res.status(405).send('Method Not Allowed');
     }
 };
