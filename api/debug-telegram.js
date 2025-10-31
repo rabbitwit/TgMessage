@@ -7,7 +7,7 @@ export default async function handler(request, response) {
   // 记录原始请求体
   console.log('原始请求体类型:', typeof request.body);
   if (typeof request.body === 'string') {
-    console.log('原始请求体 (前200字符):', request.body.substring(0, 200));
+    console.log('原始请求体 (前500字符):', request.body.substring(0, 500));
   } else if (request.body) {
     console.log('请求体对象:', JSON.stringify(request.body, null, 2));
   } else {
@@ -34,38 +34,43 @@ export default async function handler(request, response) {
   // 如果有更新数据，分析其结构
   if (updateData) {
     console.log('=== 更新数据分析 ===');
-    console.log('更新类型:', Object.keys(updateData).filter(key => key !== 'update_id'));
+    const updateTypes = Object.keys(updateData).filter(key => key !== 'update_id');
+    console.log('更新类型:', updateTypes);
     
-    // 检查是否有 message
-    if (updateData.message) {
-      console.log('消息类型: message');
-      console.log('消息内容:', JSON.stringify(updateData.message, null, 2));
-      
-      // 分析消息结构
-      const message = updateData.message;
-      console.log('消息ID:', message.message_id);
-      console.log('消息文本:', message.text);
-      console.log('发送者:', message.from ? JSON.stringify(message.from, null, 2) : '未知');
-      console.log('聊天信息:', message.chat ? JSON.stringify(message.chat, null, 2) : '未知');
-      console.log('时间戳:', message.date);
+    // 检查各种可能的消息类型
+    const messageTypes = ['message', 'edited_message', 'channel_post', 'edited_channel_post'];
+    for (const messageType of messageTypes) {
+      if (updateData[messageType]) {
+        console.log(`消息类型: ${messageType}`);
+        console.log(`${messageType} 内容:`, JSON.stringify(updateData[messageType], null, 2));
+        
+        // 分析消息结构
+        const message = updateData[messageType];
+        console.log('消息ID:', message.message_id);
+        console.log('消息文本:', message.text);
+        console.log('发送者:', message.from ? JSON.stringify(message.from, null, 2) : '未知');
+        console.log('聊天信息:', message.chat ? JSON.stringify(message.chat, null, 2) : '未知');
+        console.log('时间戳:', message.date);
+        
+        // 检查是否是机器人发送的消息
+        if (message.from && message.from.is_bot) {
+          console.log('⚠️ 这是机器人发送的消息，可能会被过滤');
+        }
+        
+        // 检查聊天类型
+        if (message.chat) {
+          console.log('聊天类型:', message.chat.type);
+        }
+      }
     }
     
-    // 检查是否有 edited_message
-    if (updateData.edited_message) {
-      console.log('消息类型: edited_message');
-      console.log('编辑消息内容:', JSON.stringify(updateData.edited_message, null, 2));
+    // 检查其他可能的更新类型
+    if (updateData.callback_query) {
+      console.log('回调查询内容:', JSON.stringify(updateData.callback_query, null, 2));
     }
     
-    // 检查是否有 channel_post
-    if (updateData.channel_post) {
-      console.log('消息类型: channel_post');
-      console.log('频道消息内容:', JSON.stringify(updateData.channel_post, null, 2));
-    }
-    
-    // 检查是否有 edited_channel_post
-    if (updateData.edited_channel_post) {
-      console.log('消息类型: edited_channel_post');
-      console.log('编辑频道消息内容:', JSON.stringify(updateData.edited_channel_post, null, 2));
+    if (updateData.inline_query) {
+      console.log('内联查询内容:', JSON.stringify(updateData.inline_query, null, 2));
     }
   }
   

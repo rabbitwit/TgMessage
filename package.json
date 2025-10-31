@@ -9,7 +9,8 @@
     "delete-all-history": "node delete-all-history.js",
     "list-groups": "node get-all-groups.js",
     "test-bot": "node test-bot.js",
-    "test-telegram-update": "node test-telegram-update.js"
+    "test-telegram-update": "node test-telegram-update.js",
+    "set-webhook": "node set-webhook.js"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,5 @@
-import fetch from 'node-fetch';
+// 使用 Node.js 内置的 fetch
+// 注意：在 Node.js 18+ 中，fetch 是全局可用的
 
 // 使用您的实际群组 ID 之一
 const CHAT_ID = -1003111490132; // 请替换为您的实际群组 ID
