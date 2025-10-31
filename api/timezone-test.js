@@ -16,6 +16,8 @@ export default async function handler(request, response) {
   console.log('MONITOR_CHAT_IDS:', process.env.MONITOR_CHAT_IDS || 'Not set');
   console.log('MONITOR_KEYWORDS:', process.env.MONITOR_KEYWORDS || 'Not set');
   console.log('NOTIFICATION_CHAT_ID:', process.env.NOTIFICATION_CHAT_ID || 'Not set');
+  console.log('USER_KEYWORDS:', process.env.USER_KEYWORDS || 'Not set');
+  console.log('TARGET_USER_IDS:', process.env.TARGET_USER_IDS || 'Not set');
   
   // 测试时间处理
   const testTimestamp = 1640995200; // 这是一个测试时间戳
@@ -36,6 +38,8 @@ export default async function handler(request, response) {
       telegramBotTokenSet: !!process.env.TELEGRAM_BOT_TOKEN,
       monitorChatIds: process.env.MONITOR_CHAT_IDS || null,
       monitorKeywords: process.env.MONITOR_KEYWORDS || null,
+      userKeywords: process.env.USER_KEYWORDS || null,
+      targetUserIds: process.env.TARGET_USER_IDS || null,
       notificationChatId: process.env.NOTIFICATION_CHAT_ID || null
     },
     testDate: {

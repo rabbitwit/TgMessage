@@ -240,8 +240,13 @@ async function processMessage(ctx, updateType) {
                 console.log('✅ 目标用户发送的消息包含用户关键词');
             } 
             // 如果不是目标用户但设置了用户关键词，则不处理
-            else if (!isTargetUser) {
-                console.log('非目标用户发送的消息，但设置了用户关键词，跳过处理');
+            else if (!isTargetUser && hasUserKeyword) {
+                console.log('非目标用户发送的消息包含用户关键词，跳过处理');
+                return;
+            }
+            // 如果是目标用户但没有用户关键词，也跳过
+            else if (isTargetUser && !hasUserKeyword) {
+                console.log('目标用户发送的消息不包含用户关键词，跳过处理');
                 return;
             }
         } 
