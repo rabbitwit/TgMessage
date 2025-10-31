@@ -81,7 +81,8 @@ function setupBotHandlers() {
     
     bot.on('message', async (ctx) => {
         try {
-            console.log('收到消息:', JSON.stringify(ctx.message, null, 2));
+            console.log('=== 收到新消息 ===');
+            console.log('完整消息对象:', JSON.stringify(ctx.message, null, 2));
             
             // 获取环境变量配置
             const MONITOR_CHAT_IDS_RAW = process.env.MONITOR_CHAT_IDS;
@@ -125,6 +126,7 @@ function setupBotHandlers() {
             
             console.log('消息详情:', {
                 chatId,
+                chatTitle: ctx.chat.title,
                 normalizedChatId,
                 fromUserId,
                 normalizedFromUserId,
@@ -138,21 +140,48 @@ function setupBotHandlers() {
             }
             
             // 检查是否在监控列表中
-            if (normalizedMonitorIds.length > 0 && !normalizedMonitorIds.includes(normalizedChatId)) {
-                console.log(`聊天 ${chatId} 不在监控列表中，跳过处理`);
-                return;
+            if (normalizedMonitorIds.length > 0) {
+                console.log('检查监控列表:', {
+                    normalizedMonitorIds,
+                    normalizedChatId,
+                    isIncluded: normalizedMonitorIds.includes(normalizedChatId)
+                });
+                
+                if (!normalizedMonitorIds.includes(normalizedChatId)) {
+                    console.log(`聊天 ${chatId} 不在监控列表中，跳过处理`);
+                    return;
+                }
+            } else {
+                console.log('未设置监控列表，监控所有聊天');
             }
             
             // 检查是否在排除列表中
             const notMonitorChatIds = parseChatIds(NOT_MONITOR_CHAT_IDS_RAW);
-            if (notMonitorChatIds.includes(normalizedChatId)) {
-                console.log(`聊天 ${chatId} 在排除列表中，跳过处理`);
-                return;
+            if (notMonitorChatIds.length > 0) {
+                console.log('检查排除列表:', {
+                    notMonitorChatIds,
+                    normalizedChatId,
+                    isExcluded: notMonitorChatIds.includes(normalizedChatId)
+                });
+                
+                if (notMonitorChatIds.includes(normalizedChatId)) {
+                    console.log(`聊天 ${chatId} 在排除列表中，跳过处理`);
+                    return;
+                }
+            } else {
+                console.log('未设置排除列表');
             }
             
             // 检查关键词匹配
+            const messageText = ctx.message.text || '';
+            console.log('消息文本:', messageText);
+            
             if (monitorKeywordsNormalized.length > 0) {
-                const messageText = ctx.message.text || '';
+                console.log('检查关键词匹配:', {
+                    messageText,
+                    keywords: monitorKeywordsNormalized
+                });
+                
                 const hasKeyword = monitorKeywordsNormalized.some(keyword => 
                     messageText.toLowerCase().includes(keyword)
                 );
@@ -167,6 +196,10 @@ function setupBotHandlers() {
                     console.log('消息不包含任何监控关键词，跳过处理');
                     return;
                 }
+                
+                console.log('✅ 消息包含监控关键词');
+            } else {
+                console.log('未设置监控关键词');
             }
             
             // 检查是否是通知群组中的消息，避免循环
@@ -183,22 +216,41 @@ function setupBotHandlers() {
                     const fromUser = ctx.from.first_name || ctx.from.username || 'Unknown';
                     const messageText = ctx.message.text || '[Non-text message]';
                     
-                    console.log('发送通知到:', NOTIFICATION_CHAT_ID);
-                    await ctx.reply(`转发消息来自: ${chatTitle}\n发送者: ${fromUser}\n内容: ${messageText}`, {
+                    console.log('准备发送通知到:', {
+                        notificationChatId: NOTIFICATION_CHAT_ID,
+                        chatTitle,
+                        fromUser,
+                        messageText
+                    });
+                    
+                    const result = await ctx.reply(`转发消息来自: ${chatTitle}\n发送者: ${fromUser}\n内容: ${messageText}`, {
                         chat_id: NOTIFICATION_CHAT_ID
                     });
-                    console.log('通知发送成功');
+                    
+                    console.log('通知发送成功:', JSON.stringify(result, null, 2));
                 } catch (error) {
                     console.error('发送通知失败:', error);
+                    console.error('错误详情:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
                 }
+            } else {
+                console.log('缺少发送通知的必要配置:', {
+                    hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
+                    hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN
+                });
             }
             
             // 响应用户
-            await ctx.reply('消息已收到并处理');
-            console.log('消息处理完成');
+            try {
+                await ctx.reply('消息已收到并处理');
+                console.log('用户响应发送成功');
+            } catch (error) {
+                console.error('发送用户响应失败:', error);
+            }
+            
+            console.log('=== 消息处理完成 ===');
         } catch (error) {
             console.error('处理消息时出错:', error);
-            // 不向用户发送错误信息，避免循环
+            console.error('错误堆栈:', error.stack);
         }
     });
 
@@ -223,11 +275,41 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 
 // 导出 Vercel 处理函数
 export default async (req, res) => {
-    console.log('收到 HTTP 请求:', {
+    console.log('=== 收到 HTTP 请求 ===');
+    console.log('请求详情:', {
         method: req.method,
         url: req.url,
         headers: req.headers
     });
+    
+    // 处理请求体
+    let updateData = null;
+    
+    // 检查请求体
+    if (req.body) {
+        console.log('请求体类型:', typeof req.body);
+        console.log('请求体内容:', req.body);
+        
+        if (typeof req.body === 'string') {
+            // 如果是字符串，尝试解析 JSON
+            try {
+                updateData = JSON.parse(req.body);
+                console.log('解析后的更新数据:', JSON.stringify(updateData, null, 2));
+            } catch (parseError) {
+                console.error('JSON 解析失败:', parseError);
+                res.status(400).send('Invalid JSON in request body');
+                return;
+            }
+        } else if (typeof req.body === 'object') {
+            // 如果已经是对象
+            updateData = req.body;
+            console.log('更新数据:', JSON.stringify(updateData, null, 2));
+        }
+    } else {
+        console.log('请求体为空');
+        res.status(400).send('Request body is empty');
+        return;
+    }
     
     if (!bot) {
         // 如果 bot 还未初始化，尝试初始化
@@ -238,22 +320,36 @@ export default async (req, res) => {
     
     if (req.method === 'POST') {
         try {
-            console.log('处理 Telegram Webhook 请求，更新内容:', JSON.stringify(req.body, null, 2));
+            console.log('处理 Telegram Webhook 请求');
+            
+            // 检查更新数据
+            if (!updateData) {
+                const errorMsg = '无法解析更新数据';
+                console.error(errorMsg);
+                res.status(400).send(errorMsg);
+                return;
+            }
+            
             // 处理 Telegram Webhook 请求
             if (bot) {
-                await bot.handleUpdate(req.body);
+                console.log('调用 bot.handleUpdate');
+                await bot.handleUpdate(updateData);
                 console.log('更新处理完成');
                 res.status(200).send('OK');
             } else {
-                console.error('Bot 未初始化');
-                res.status(500).send('Bot not initialized');
+                const errorMsg = 'Bot 未初始化';
+                console.error(errorMsg);
+                res.status(500).send(errorMsg);
             }
         } catch (error) {
             console.error('处理更新时出错:', error);
-            res.status(500).send('Error processing update');
+            console.error('错误堆栈:', error.stack);
+            res.status(500).send('Error processing update: ' + error.message);
         }
     } else {
         console.log('不支持的 HTTP 方法:', req.method);
         res.status(405).send('Method Not Allowed');
     }
+    
+    console.log('=== HTTP 请求处理完成 ===');
 };

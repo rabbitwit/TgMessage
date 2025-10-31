@@ -69,6 +69,7 @@
 
 - `npm run delete-all-history`: 删除所有历史消息
 - `npm run list-groups`: 列出所有群组
+- `npm run test-bot`: 测试 Telegram Bot 功能
 
 ## API 端点
 
@@ -121,6 +122,33 @@ curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_W
    curl https://your-deployment-url.vercel.app/api/set-webhook?token=your_cron_auth_token
    ```
 
+## 调试问题
+
+### 1. 测试 Telegram Bot 是否正常工作
+在本地运行以下命令测试 Bot 功能：
+```bash
+npm run test-bot
+```
+
+### 2. 检查详细日志
+在 Vercel 控制台中查看函数日志，确认是否能看到详细的消息处理过程。
+
+### 3. 验证环境变量
+确保以下环境变量已正确设置：
+- `TELEGRAM_BOT_TOKEN`
+- `MONITOR_KEYWORDS`
+- `NOTIFICATION_CHAT_ID`
+- `MONITOR_CHAT_IDS` (如果需要)
+
+### 4. 检查 Bot 权限
+确保 Telegram Bot 已经：
+- 添加到监控的群组中
+- 添加到通知群组中
+- 有发送消息的权限
+
+### 5. 手动测试 Webhook
+在监控群组中发送一条包含关键词的消息，然后检查 Vercel 日志中的详细处理过程。
+
 ## 常见问题排查
 
 1. **程序无响应**: 检查环境变量是否正确配置
@@ -128,6 +156,7 @@ curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_W
 3. **无法接收消息**: 检查 Webhook 是否正确设置，使用 `getWebhookInfo` 验证
 4. **循环消息**: 系统已内置防护机制，检查 NOTIFICATION_CHAT_ID 是否正确设置
 5. **函数未执行**: 确保 API 端点路径正确，检查 Vercel 配置文件
+6. **消息未转发**: 检查环境变量和 Bot 权限
 
 ## 注意事项
 

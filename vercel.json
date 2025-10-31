@@ -15,6 +15,18 @@
     "api/test.js": {
       "memory": 512,
       "maxDuration": 10
+    },
+    "api/health.js": {
+      "memory": 512,
+      "maxDuration": 10
+    },
+    "api/test-webhook.js": {
+      "memory": 512,
+      "maxDuration": 10
+    },
+    "api/debug-request.js": {
+      "memory": 512,
+      "maxDuration": 10
     }
   },
   "env": {
