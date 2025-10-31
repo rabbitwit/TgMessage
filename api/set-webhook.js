@@ -12,9 +12,9 @@ export default async function handler(request, response) {
     const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
     
     // 获取当前部署的 URL
-    const DEPLOYMENT_URL = process.env.DEPLOYMENT_URL;
+    const DEPLOYMENT_URL = process.env.DEPLOYMENT_URL || process.env.VERCEL_URL;
     if (!DEPLOYMENT_URL) {
-      throw new Error('DEPLOYMENT_URL or VERCEL_URL environment variable is not set');
+      throw new Error('Neither DEPLOYMENT_URL nor VERCEL_URL environment variable is set');
     }
     
     // 构建 webhook URL

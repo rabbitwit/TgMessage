@@ -29,7 +29,7 @@
 - `DEDUP_WINDOW_MINUTES`: 去重窗口（分钟）
 - `NOTIFICATION_WEBHOOK_URL`: 通知 Webhook URL
 - `CRON_AUTH_TOKEN`: Cron 认证 Token (保护你的 cron 端点)
-- `DEPLOYMENT_URL`: 部署 URL (Vercel 部署时使用)
+- `DEPLOYMENT_URL`: 部署 URL (Vercel 部署时使用，如果未设置将自动使用 VERCEL_URL)
 
 ## 本地运行
 
@@ -53,10 +53,12 @@
 
 1. 部署到 Vercel
 
-2. 配置环境变量 (在 Vercel 项目设置中)
+2. 在 Vercel 项目设置中配置环境变量
 
 3. 设置 Webhook:
    访问 `https://your-deployment-url.vercel.app/api/set-webhook?token=your_cron_auth_token`
+   
+   注意：如果未设置 DEPLOYMENT_URL 环境变量，系统会自动使用 VERCEL_URL
 
 4. 验证 Webhook:
    ```bash
@@ -67,7 +69,6 @@
 
 - `npm run delete-all-history`: 删除所有历史消息
 - `npm run list-groups`: 列出所有群组
-- `npm run check-webhook`: 检查当前 Webhook 状态
 
 ## API 端点
 
@@ -93,6 +94,20 @@ curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook
 ```bash
 curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_WEBHOOK_URL>
 ```
+
+## Vercel 部署检查清单
+
+1. 确保所有必需的环境变量都已在 Vercel 中配置
+2. 确保 DEPLOYMENT_URL 或 VERCEL_URL 环境变量可用
+3. 部署后通过访问 `/api/set-webhook?token=your_cron_auth_token` 设置 Webhook
+4. 检查 Vercel 日志确认没有错误
+
+## 常见问题排查
+
+1. **程序无响应**: 检查环境变量是否正确配置
+2. **Webhook 设置失败**: 确保 DEPLOYMENT_URL 或 VERCEL_URL 正确设置
+3. **无法接收消息**: 检查 Webhook 是否正确设置，使用 `getWebhookInfo` 验证
+4. **循环消息**: 系统已内置防护机制，检查 NOTIFICATION_CHAT_ID 是否正确设置
 
 ## 注意事项
 
