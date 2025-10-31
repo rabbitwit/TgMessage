@@ -1,0 +1,20 @@
+{
+  "name": "tgmessage",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node realtime-monitor.js",
+    "delete-all-history": "node delete-all-history.js",
+    "list-groups": "node get-all-groups.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "grammy": "^1.32.0",
+    "telegram": "^2.26.2"
+  }
+}
