@@ -23,6 +23,9 @@
     },
     "api/debug-telegram.js": {
       "maxDuration": 10
+    },
+    "api/test-logging.js": {
+      "maxDuration": 10
     }
   },
   "env": {
