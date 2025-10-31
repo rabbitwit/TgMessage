@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Telegram Webhook</title>
+</head>
+<body>
+    <h1>Test Telegram Webhook</h1>
+    <button onclick="sendTestMessage()">Send Test Message</button>
+    <div id="result"></div>
+
+    <script>
+        async function sendTestMessage() {
+            const testData = {
+                "update_id": 123456,
+                "message": {
+                    "message_id": 123,
+                    "from": {
+                        "id": 123456789,
+                        "first_name": "Test",
+                        "username": "testuser"
+                    },
+                    "chat": {
+                        "id": -1001234567890,
+                        "title": "Test Group"
+                    },
+                    "date": 1640995200,
+                    "text": "这是一个测试抽奖消息"
+                }
+            };
+
+            try {
+                const response = await fetch('https://tg-message-tau.vercel.app/api/debug-telegram', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                const result = await response.text();
+                document.getElementById('result').innerHTML = '<p>Response: ' + result + '</p><p>Status: ' + response.status + '</p>';
+                console.log('Response:', result);
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p>Error: ' + error.message + '</p>';
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
