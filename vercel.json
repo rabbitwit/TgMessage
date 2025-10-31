@@ -26,6 +26,9 @@
     },
     "api/test-logging.js": {
       "maxDuration": 10
+    },
+    "api/diagnose.js": {
+      "maxDuration": 10
     }
   },
   "env": {
