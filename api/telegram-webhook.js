@@ -1,6 +1,5 @@
-import { Bot, webhookCallback } from 'grammy';
+import { Bot } from 'grammy';
 import { config } from 'dotenv';
-import { handleMessage, isDeletableMessage, sleep, compareSenderId } from '../utils/messageUtils.js';
 import { normalizeId, parseChatIds } from '../utils/formatUtils.js';
 import { fetchBotInfo } from '../utils/telegramUtil.js';
 
@@ -44,7 +43,6 @@ const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 // 全局变量用于识别机器人和当前账号（规范化后的数字ID）
 let BOT_USER_ID_NORMALIZED = '';
 let BOT_USERNAME = '';
-let SELF_USER_ID_NORMALIZED = '';
 
 // 初始化机器人信息
 async function initializeBot() {
@@ -70,7 +68,6 @@ bot.on('message', async (ctx) => {
         const MONITOR_CHAT_IDS_RAW = process.env.MONITOR_CHAT_IDS;
         const NOT_MONITOR_CHAT_IDS_RAW = process.env.NOT_MONITOR_CHAT_IDS;
         const MONITOR_KEYWORDS_RAW = process.env.MONITOR_KEYWORDS;
-        const AUTO_DELETE_MINUTES = parseInt(process.env.AUTO_DELETE_MINUTES) || 10;
         const NOTIFICATION_CHAT_ID = process.env.NOTIFICATION_CHAT_ID;
         const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
         const TARGET_USER_IDS_RAW = process.env.TARGET_USER_IDS;
@@ -94,6 +91,14 @@ bot.on('message', async (ctx) => {
         
         const chatId = ctx.chat.id.toString();
         const normalizedChatId = normalizeId(chatId);
+        const fromUserId = ctx.from.id.toString();
+        const normalizedFromUserId = normalizeId(fromUserId);
+        
+        // 检查是否是机器人自己发送的消息（避免循环）
+        if (BOT_USER_ID_NORMALIZED && normalizedFromUserId === BOT_USER_ID_NORMALIZED) {
+            console.log('Skipping message sent by bot itself');
+            return;
+        }
         
         // 检查是否在监控列表中
         if (normalizedMonitorIds.length > 0 && !normalizedMonitorIds.includes(normalizedChatId)) {
@@ -121,6 +126,13 @@ bot.on('message', async (ctx) => {
             }
         }
         
+        // 检查是否是通知群组中的消息，避免循环
+        const normalizedNotificationChatId = normalizeId(NOTIFICATION_CHAT_ID);
+        if (normalizedNotificationChatId && normalizedChatId === normalizedNotificationChatId) {
+            console.log('Skipping message from notification chat to avoid loop');
+            return;
+        }
+        
         // 发送通知
         if (NOTIFICATION_CHAT_ID && TELEGRAM_BOT_TOKEN) {
             try {
@@ -141,7 +153,7 @@ bot.on('message', async (ctx) => {
         await ctx.reply('消息已收到并处理');
     } catch (error) {
         console.error('Error processing message:', error);
-        await ctx.reply('处理消息时发生错误');
+        // 不向用户发送错误信息，避免循环
     }
 });
 
@@ -150,4 +162,18 @@ bot.catch((err) => {
     console.error('Bot error:', err);
 });
 
-export default webhookCallback(bot, 'nextjs');
+// 导出 Vercel 处理函数
+export default async (req, res) => {
+    if (req.method === 'POST') {
+        try {
+            // 处理 Telegram Webhook 请求
+            await bot.handleUpdate(req.body);
+            res.status(200).send('OK');
+        } catch (error) {
+            console.error('Error handling update:', error);
+            res.status(500).send('Error');
+        }
+    } else {
+        res.status(405).send('Method Not Allowed');
+    }
+};
