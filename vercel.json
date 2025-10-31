@@ -37,5 +37,6 @@
   "env": {
     "NODE_OPTIONS": "--experimental-fetch",
     "TZ": "Asia/Shanghai"
-  }
+  },
+  "regions": ["hkg1"]
 }
