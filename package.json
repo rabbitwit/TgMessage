@@ -8,7 +8,8 @@
     "start": "node realtime-monitor.js",
     "delete-all-history": "node delete-all-history.js",
     "list-groups": "node get-all-groups.js",
-    "test-bot": "node test-bot.js"
+    "test-bot": "node test-bot.js",
+    "test-telegram-update": "node test-telegram-update.js"
   },
   "keywords": [],
   "author": "",
