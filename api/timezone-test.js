@@ -1,0 +1,47 @@
+export default async function handler(request, response) {
+  console.log('=== Timezone Test Function ===');
+  
+  // 检查服务器时间
+  const serverTime = new Date();
+  console.log('Server Time (UTC):', serverTime.toISOString());
+  console.log('Server Time (Local):', serverTime.toString());
+  
+  // 检查时区信息
+  console.log('Timezone offset (minutes):', serverTime.getTimezoneOffset());
+  console.log('Process timezone:', process.env.TZ || 'Not set');
+  
+  // 检查环境变量
+  console.log('=== Environment Variables ===');
+  console.log('TELEGRAM_BOT_TOKEN set:', !!process.env.TELEGRAM_BOT_TOKEN);
+  console.log('MONITOR_CHAT_IDS:', process.env.MONITOR_CHAT_IDS || 'Not set');
+  console.log('MONITOR_KEYWORDS:', process.env.MONITOR_KEYWORDS || 'Not set');
+  console.log('NOTIFICATION_CHAT_ID:', process.env.NOTIFICATION_CHAT_ID || 'Not set');
+  
+  // 测试时间处理
+  const testTimestamp = 1640995200; // 这是一个测试时间戳
+  const testDate = new Date(testTimestamp * 1000);
+  console.log('Test timestamp:', testTimestamp);
+  console.log('Test date (UTC):', testDate.toISOString());
+  console.log('Test date (Local):', testDate.toString());
+  
+  response.status(200).json({
+    success: true,
+    serverTime: {
+      utc: serverTime.toISOString(),
+      local: serverTime.toString(),
+      timezoneOffset: serverTime.getTimezoneOffset()
+    },
+    environment: {
+      timezone: process.env.TZ || 'Not set',
+      telegramBotTokenSet: !!process.env.TELEGRAM_BOT_TOKEN,
+      monitorChatIds: process.env.MONITOR_CHAT_IDS || null,
+      monitorKeywords: process.env.MONITOR_KEYWORDS || null,
+      notificationChatId: process.env.NOTIFICATION_CHAT_ID || null
+    },
+    testDate: {
+      timestamp: testTimestamp,
+      utc: testDate.toISOString(),
+      local: testDate.toString()
+    }
+  });
+}

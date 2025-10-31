@@ -29,6 +29,9 @@
     },
     "api/diagnose.js": {
       "maxDuration": 10
+    },
+    "api/timezone-test.js": {
+      "maxDuration": 10
     }
   },
   "env": {
