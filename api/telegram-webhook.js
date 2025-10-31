@@ -8,44 +8,13 @@ if (!process.env.VERCEL) {
   config();
 }
 
-// 已处理消息缓存 Map<dedupKey, { ts: number, text: string }>
-const processedMessages = new Map();
-const DEDUP_WINDOW_MINUTES = parseInt(process.env.DEDUP_WINDOW_MINUTES) || 10;
-
-/**
- * 清理已处理消息的函数
- */
-function cleanupProcessedMessages() {
-    try {
-        const now = Date.now();
-        const ttl = DEDUP_WINDOW_MINUTES * 60 * 1000;
-        const keysToDelete = [];
-        
-        // 遍历已处理消息集合，收集超过生存时间的消息键
-        for (const [key, value] of processedMessages) {
-            if (now - value.ts > ttl) {
-                keysToDelete.push(key);
-            }
-        }
-        
-        // 批量删除过期的消息记录
-        for (const key of keysToDelete) {
-            processedMessages.delete(key);
-        }
-    } catch (error) {
-        console.error('清理已处理消息时发生错误:', error);
-    }
-}
-
-// 启动定时清理，1分钟一次
-setInterval(cleanupProcessedMessages, 60 * 1000);
-
 // 创建 Telegram Bot 实例
 let bot;
 
 // 全局变量用于识别机器人和当前账号（规范化后的数字ID）
 let BOT_USER_ID_NORMALIZED = '';
 let BOT_USERNAME = '';
+let isBotInitialized = false;
 
 // 初始化机器人信息
 async function initializeBot() {
@@ -54,11 +23,21 @@ async function initializeBot() {
         
         if (!process.env.TELEGRAM_BOT_TOKEN) {
             console.error('错误: TELEGRAM_BOT_TOKEN 环境变量未设置');
-            return;
+            return false;
+        }
+        
+        if (isBotInitialized) {
+            console.log('Bot 已经初始化');
+            return true;
         }
         
         console.log('创建 Bot 实例...');
         bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
+        
+        console.log('初始化 Bot...');
+        // 初始化 bot 信息
+        await bot.init();
+        isBotInitialized = true;
         
         console.log('获取 Bot 信息...');
         const botInfo = await fetchBotInfo(process.env.TELEGRAM_BOT_TOKEN);
@@ -68,8 +47,10 @@ async function initializeBot() {
         
         // 设置处理器
         setupBotHandlers();
+        return true;
     } catch (error) {
         console.error('Bot 初始化失败:', error);
+        return false;
     }
 }
 
@@ -268,9 +249,7 @@ function setupBotHandlers() {
 // 在模块加载时初始化机器人
 console.log('模块加载中...');
 if (process.env.TELEGRAM_BOT_TOKEN) {
-    console.log('检测到 TELEGRAM_BOT_TOKEN，开始初始化 Bot...');
-    // 注意：这里我们不等待 initializeBot 完成，因为这可能会导致超时
-    initializeBot().catch(console.error);
+    console.log('检测到 TELEGRAM_BOT_TOKEN');
 } else {
     console.log('未检测到 TELEGRAM_BOT_TOKEN，跳过 Bot 初始化');
 }
@@ -313,10 +292,16 @@ export default async (req, res) => {
         return;
     }
     
-    if (!bot) {
+    if (!isBotInitialized) {
         // 如果 bot 还未初始化，尝试初始化
         console.log('Bot 未初始化，尝试初始化...');
-        await initializeBot();
+        const initSuccess = await initializeBot();
+        if (!initSuccess) {
+            const errorMsg = 'Bot 初始化失败';
+            console.error(errorMsg);
+            res.status(500).send(errorMsg);
+            return;
+        }
         // 给一点时间让处理器设置完成
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -334,7 +319,7 @@ export default async (req, res) => {
             }
             
             // 处理 Telegram Webhook 请求
-            if (bot) {
+            if (bot && isBotInitialized) {
                 console.log('调用 bot.handleUpdate');
                 await bot.handleUpdate(updateData);
                 console.log('更新处理完成');

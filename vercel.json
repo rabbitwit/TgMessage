@@ -1,31 +1,24 @@
 {
   "functions": {
     "api/telegram-webhook.js": {
-      "memory": 1024,
       "maxDuration": 90
     },
     "api/set-webhook.js": {
-      "memory": 512,
       "maxDuration": 10
     },
     "api/delete-webhook.js": {
-      "memory": 512,
       "maxDuration": 10
     },
     "api/test.js": {
-      "memory": 512,
       "maxDuration": 10
     },
     "api/health.js": {
-      "memory": 512,
       "maxDuration": 10
     },
     "api/test-webhook.js": {
-      "memory": 512,
       "maxDuration": 10
     },
     "api/debug-request.js": {
-      "memory": 512,
       "maxDuration": 10
     }
   },
