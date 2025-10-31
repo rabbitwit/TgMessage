@@ -8,6 +8,11 @@ export default async function handler(request, response) {
   }
 
   try {
+    // 检查 TELEGRAM_BOT_TOKEN 是否设置
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
+      throw new Error('TELEGRAM_BOT_TOKEN environment variable is not set');
+    }
+    
     // 创建 Telegram Bot 实例
     const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
     
