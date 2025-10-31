@@ -65,6 +65,9 @@ async function initializeBot() {
         BOT_USER_ID_NORMALIZED = botInfo.BOT_USER_ID_NORMALIZED;
         BOT_USERNAME = botInfo.BOT_USERNAME;
         console.log('Bot 初始化成功:', BOT_USERNAME);
+        
+        // 设置处理器
+        setupBotHandlers();
     } catch (error) {
         console.error('Bot 初始化失败:', error);
     }
@@ -266,9 +269,8 @@ function setupBotHandlers() {
 console.log('模块加载中...');
 if (process.env.TELEGRAM_BOT_TOKEN) {
     console.log('检测到 TELEGRAM_BOT_TOKEN，开始初始化 Bot...');
-    initializeBot().then(() => {
-        setupBotHandlers();
-    }).catch(console.error);
+    // 注意：这里我们不等待 initializeBot 完成，因为这可能会导致超时
+    initializeBot().catch(console.error);
 } else {
     console.log('未检测到 TELEGRAM_BOT_TOKEN，跳过 Bot 初始化');
 }
@@ -288,7 +290,7 @@ export default async (req, res) => {
     // 检查请求体
     if (req.body) {
         console.log('请求体类型:', typeof req.body);
-        console.log('请求体内容:', req.body);
+        console.log('请求体内容:', typeof req.body === 'string' ? req.body.substring(0, 200) + '...' : req.body);
         
         if (typeof req.body === 'string') {
             // 如果是字符串，尝试解析 JSON
@@ -315,7 +317,8 @@ export default async (req, res) => {
         // 如果 bot 还未初始化，尝试初始化
         console.log('Bot 未初始化，尝试初始化...');
         await initializeBot();
-        setupBotHandlers();
+        // 给一点时间让处理器设置完成
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     if (req.method === 'POST') {
