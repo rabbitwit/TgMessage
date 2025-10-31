@@ -77,6 +77,8 @@
 - `POST /api/telegram-webhook`: Telegram Webhook 端点
 - `GET /api/set-webhook`: 设置 Telegram Webhook
 - `GET /api/delete-webhook`: 删除 Telegram Webhook
+- `GET /api/health`: 健康检查端点
+- `GET /api/test`: 测试端点
 
 ## Webhook 管理命令
 
@@ -102,12 +104,30 @@ curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_W
 3. 部署后通过访问 `/api/set-webhook?token=your_cron_auth_token` 设置 Webhook
 4. 检查 Vercel 日志确认没有错误
 
+## 测试部署是否成功
+
+1. 部署完成后，首先测试健康检查端点：
+   ```
+   curl https://your-deployment-url.vercel.app/api/health
+   ```
+
+2. 然后测试基本功能端点：
+   ```
+   curl https://your-deployment-url.vercel.app/api/test
+   ```
+
+3. 最后设置 Webhook：
+   ```
+   curl https://your-deployment-url.vercel.app/api/set-webhook?token=your_cron_auth_token
+   ```
+
 ## 常见问题排查
 
 1. **程序无响应**: 检查环境变量是否正确配置
 2. **Webhook 设置失败**: 确保 DEPLOYMENT_URL 或 VERCEL_URL 正确设置
 3. **无法接收消息**: 检查 Webhook 是否正确设置，使用 `getWebhookInfo` 验证
 4. **循环消息**: 系统已内置防护机制，检查 NOTIFICATION_CHAT_ID 是否正确设置
+5. **函数未执行**: 确保 API 端点路径正确，检查 Vercel 配置文件
 
 ## 注意事项
 
