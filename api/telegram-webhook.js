@@ -63,179 +63,24 @@ function setupBotHandlers() {
     
     console.log('设置 Bot 消息处理器...');
     
+    // 处理普通消息
     bot.on('message', async (ctx) => {
-        try {
-            console.log('=== 收到新消息 ===');
-            console.log('完整消息对象:', JSON.stringify(ctx.message, null, 2));
-            
-            // 获取环境变量配置
-            const MONITOR_CHAT_IDS_RAW = process.env.MONITOR_CHAT_IDS;
-            const NOT_MONITOR_CHAT_IDS_RAW = process.env.NOT_MONITOR_CHAT_IDS;
-            const MONITOR_KEYWORDS_RAW = process.env.MONITOR_KEYWORDS;
-            const NOTIFICATION_CHAT_ID = process.env.NOTIFICATION_CHAT_ID;
-            const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-            const TARGET_USER_IDS_RAW = process.env.TARGET_USER_IDS;
-            const USER_KEYWORDS_RAW = process.env.USER_KEYWORDS;
-            
-            console.log('环境变量配置:', {
-                hasMonitorChatIds: !!MONITOR_CHAT_IDS_RAW,
-                hasNotMonitorChatIds: !!NOT_MONITOR_CHAT_IDS_RAW,
-                hasMonitorKeywords: !!MONITOR_KEYWORDS_RAW,
-                hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
-                hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN,
-                hasTargetUserIds: !!TARGET_USER_IDS_RAW,
-                hasUserKeywords: !!USER_KEYWORDS_RAW
-            });
-            
-            // 解析并规范化监控配置
-            const monitorChatIds = MONITOR_CHAT_IDS_RAW ? MONITOR_CHAT_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean) : [];
-            const normalizedMonitorIds = monitorChatIds.map(id => normalizeId(id)).filter(Boolean);
-            const monitorKeywords = MONITOR_KEYWORDS_RAW ? MONITOR_KEYWORDS_RAW.split(',').map(kw => kw.trim()).filter(Boolean) : [];
-            const monitorKeywordsNormalized = monitorKeywords.map(k => k.toLowerCase()).filter(Boolean);
-            
-            // 解析新增配置并规范化
-            const targetUserIds = TARGET_USER_IDS_RAW ? TARGET_USER_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean) : [];
-            const targetUserIdsNormalized = targetUserIds.map(id => normalizeId(id)).filter(Boolean);
-            const userKeywords = USER_KEYWORDS_RAW ? USER_KEYWORDS_RAW.split(',').map(kw => kw.trim()).filter(Boolean) : [];
-            const userKeywordsNormalized = userKeywords.map(k => k.toLowerCase()).filter(Boolean);
-            
-            // 处理消息
-            // 注意：由于 Webhook 模式限制，我们无法完全复用原有的 handleMessage 函数
-            // 需要实现适合 Webhook 的简化版本
-            
-            const chatId = ctx.chat.id.toString();
-            const normalizedChatId = normalizeId(chatId);
-            const fromUserId = ctx.from.id.toString();
-            const normalizedFromUserId = normalizeId(fromUserId);
-            
-            console.log('消息详情:', {
-                chatId,
-                chatTitle: ctx.chat.title,
-                normalizedChatId,
-                fromUserId,
-                normalizedFromUserId,
-                botUserId: BOT_USER_ID_NORMALIZED
-            });
-            
-            // 检查是否是机器人自己发送的消息（避免循环）
-            if (BOT_USER_ID_NORMALIZED && normalizedFromUserId === BOT_USER_ID_NORMALIZED) {
-                console.log('跳过机器人自己发送的消息');
-                return;
-            }
-            
-            // 检查是否在监控列表中
-            if (normalizedMonitorIds.length > 0) {
-                console.log('检查监控列表:', {
-                    normalizedMonitorIds,
-                    normalizedChatId,
-                    isIncluded: normalizedMonitorIds.includes(normalizedChatId)
-                });
-                
-                if (!normalizedMonitorIds.includes(normalizedChatId)) {
-                    console.log(`聊天 ${chatId} 不在监控列表中，跳过处理`);
-                    return;
-                }
-            } else {
-                console.log('未设置监控列表，监控所有聊天');
-            }
-            
-            // 检查是否在排除列表中
-            const notMonitorChatIds = parseChatIds(NOT_MONITOR_CHAT_IDS_RAW);
-            if (notMonitorChatIds.length > 0) {
-                console.log('检查排除列表:', {
-                    notMonitorChatIds,
-                    normalizedChatId,
-                    isExcluded: notMonitorChatIds.includes(normalizedChatId)
-                });
-                
-                if (notMonitorChatIds.includes(normalizedChatId)) {
-                    console.log(`聊天 ${chatId} 在排除列表中，跳过处理`);
-                    return;
-                }
-            } else {
-                console.log('未设置排除列表');
-            }
-            
-            // 检查关键词匹配
-            const messageText = ctx.message.text || '';
-            console.log('消息文本:', messageText);
-            
-            if (monitorKeywordsNormalized.length > 0) {
-                console.log('检查关键词匹配:', {
-                    messageText,
-                    keywords: monitorKeywordsNormalized
-                });
-                
-                const hasKeyword = monitorKeywordsNormalized.some(keyword => 
-                    messageText.toLowerCase().includes(keyword)
-                );
-                
-                console.log('关键词匹配结果:', {
-                    messageText,
-                    keywords: monitorKeywordsNormalized,
-                    hasKeyword
-                });
-                
-                if (!hasKeyword) {
-                    console.log('消息不包含任何监控关键词，跳过处理');
-                    return;
-                }
-                
-                console.log('✅ 消息包含监控关键词');
-            } else {
-                console.log('未设置监控关键词');
-            }
-            
-            // 检查是否是通知群组中的消息，避免循环
-            const normalizedNotificationChatId = normalizeId(NOTIFICATION_CHAT_ID);
-            if (normalizedNotificationChatId && normalizedChatId === normalizedNotificationChatId) {
-                console.log('跳过来自通知群组的消息以避免循环');
-                return;
-            }
-            
-            // 发送通知
-            if (NOTIFICATION_CHAT_ID && TELEGRAM_BOT_TOKEN) {
-                try {
-                    const chatTitle = ctx.chat.title || ctx.chat.first_name || 'Unknown';
-                    const fromUser = ctx.from.first_name || ctx.from.username || 'Unknown';
-                    const messageText = ctx.message.text || '[Non-text message]';
-                    
-                    console.log('准备发送通知到:', {
-                        notificationChatId: NOTIFICATION_CHAT_ID,
-                        chatTitle,
-                        fromUser,
-                        messageText
-                    });
-                    
-                    const result = await ctx.reply(`转发消息来自: ${chatTitle}\n发送者: ${fromUser}\n内容: ${messageText}`, {
-                        chat_id: NOTIFICATION_CHAT_ID
-                    });
-                    
-                    console.log('通知发送成功:', JSON.stringify(result, null, 2));
-                } catch (error) {
-                    console.error('发送通知失败:', error);
-                    console.error('错误详情:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-                }
-            } else {
-                console.log('缺少发送通知的必要配置:', {
-                    hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
-                    hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN
-                });
-            }
-            
-            // 响应用户
-            try {
-                await ctx.reply('消息已收到并处理');
-                console.log('用户响应发送成功');
-            } catch (error) {
-                console.error('发送用户响应失败:', error);
-            }
-            
-            console.log('=== 消息处理完成 ===');
-        } catch (error) {
-            console.error('处理消息时出错:', error);
-            console.error('错误堆栈:', error.stack);
-        }
+        await processMessage(ctx, 'message');
+    });
+    
+    // 处理编辑过的消息
+    bot.on('edited_message', async (ctx) => {
+        await processMessage(ctx, 'edited_message');
+    });
+    
+    // 处理频道消息
+    bot.on('channel_post', async (ctx) => {
+        await processMessage(ctx, 'channel_post');
+    });
+    
+    // 处理编辑过的频道消息
+    bot.on('edited_channel_post', async (ctx) => {
+        await processMessage(ctx, 'edited_channel_post');
     });
 
     // 错误处理
@@ -244,6 +89,203 @@ function setupBotHandlers() {
     });
     
     console.log('Bot 消息处理器设置完成');
+}
+
+// 处理不同类型的消息
+async function processMessage(ctx, updateType) {
+    try {
+        console.log(`=== 收到${updateType}更新 ===`);
+        console.log('完整更新对象:', JSON.stringify(ctx.update, null, 2));
+        
+        // 获取消息对象（根据不同更新类型）
+        let message = null;
+        switch (updateType) {
+            case 'message':
+                message = ctx.message;
+                break;
+            case 'edited_message':
+                message = ctx.editedMessage;
+                break;
+            case 'channel_post':
+                message = ctx.channelPost;
+                break;
+            case 'edited_channel_post':
+                message = ctx.editedChannelPost;
+                break;
+        }
+        
+        if (!message) {
+            console.log('无法获取消息对象');
+            return;
+        }
+        
+        console.log('消息对象:', JSON.stringify(message, null, 2));
+        
+        // 获取环境变量配置
+        const MONITOR_CHAT_IDS_RAW = process.env.MONITOR_CHAT_IDS;
+        const NOT_MONITOR_CHAT_IDS_RAW = process.env.NOT_MONITOR_CHAT_IDS;
+        const MONITOR_KEYWORDS_RAW = process.env.MONITOR_KEYWORDS;
+        const NOTIFICATION_CHAT_ID = process.env.NOTIFICATION_CHAT_ID;
+        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+        const TARGET_USER_IDS_RAW = process.env.TARGET_USER_IDS;
+        const USER_KEYWORDS_RAW = process.env.USER_KEYWORDS;
+        
+        console.log('环境变量配置:', {
+            hasMonitorChatIds: !!MONITOR_CHAT_IDS_RAW,
+            hasNotMonitorChatIds: !!NOT_MONITOR_CHAT_IDS_RAW,
+            hasMonitorKeywords: !!MONITOR_KEYWORDS_RAW,
+            hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
+            hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN,
+            hasTargetUserIds: !!TARGET_USER_IDS_RAW,
+            hasUserKeywords: !!USER_KEYWORDS_RAW
+        });
+        
+        // 解析并规范化监控配置
+        const monitorChatIds = MONITOR_CHAT_IDS_RAW ? MONITOR_CHAT_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean) : [];
+        const normalizedMonitorIds = monitorChatIds.map(id => normalizeId(id)).filter(Boolean);
+        const monitorKeywords = MONITOR_KEYWORDS_RAW ? MONITOR_KEYWORDS_RAW.split(',').map(kw => kw.trim()).filter(Boolean) : [];
+        const monitorKeywordsNormalized = monitorKeywords.map(k => k.toLowerCase()).filter(Boolean);
+        
+        // 解析新增配置并规范化
+        const targetUserIds = TARGET_USER_IDS_RAW ? TARGET_USER_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean) : [];
+        const targetUserIdsNormalized = targetUserIds.map(id => normalizeId(id)).filter(Boolean);
+        const userKeywords = USER_KEYWORDS_RAW ? USER_KEYWORDS_RAW.split(',').map(kw => kw.trim()).filter(Boolean) : [];
+        const userKeywordsNormalized = userKeywords.map(k => k.toLowerCase()).filter(Boolean);
+        
+        // 处理消息
+        const chatId = message.chat.id.toString();
+        const normalizedChatId = normalizeId(chatId);
+        const fromUserId = message.from ? message.from.id.toString() : null;
+        const normalizedFromUserId = fromUserId ? normalizeId(fromUserId) : null;
+        
+        console.log('消息详情:', {
+            chatId,
+            chatTitle: message.chat.title,
+            normalizedChatId,
+            fromUserId,
+            normalizedFromUserId,
+            botUserId: BOT_USER_ID_NORMALIZED
+        });
+        
+        // 检查是否是机器人自己发送的消息（避免循环）
+        if (BOT_USER_ID_NORMALIZED && normalizedFromUserId && normalizedFromUserId === BOT_USER_ID_NORMALIZED) {
+            console.log('跳过机器人自己发送的消息');
+            return;
+        }
+        
+        // 检查是否在监控列表中
+        if (normalizedMonitorIds.length > 0) {
+            console.log('检查监控列表:', {
+                normalizedMonitorIds,
+                normalizedChatId,
+                isIncluded: normalizedMonitorIds.includes(normalizedChatId)
+            });
+            
+            if (!normalizedMonitorIds.includes(normalizedChatId)) {
+                console.log(`聊天 ${chatId} 不在监控列表中，跳过处理`);
+                return;
+            }
+        } else {
+            console.log('未设置监控列表，监控所有聊天');
+        }
+        
+        // 检查是否在排除列表中
+        const notMonitorChatIds = parseChatIds(NOT_MONITOR_CHAT_IDS_RAW);
+        if (notMonitorChatIds.length > 0) {
+            console.log('检查排除列表:', {
+                notMonitorChatIds,
+                normalizedChatId,
+                isExcluded: notMonitorChatIds.includes(normalizedChatId)
+            });
+            
+            if (notMonitorChatIds.includes(normalizedChatId)) {
+                console.log(`聊天 ${chatId} 在排除列表中，跳过处理`);
+                return;
+            }
+        } else {
+            console.log('未设置排除列表');
+        }
+        
+        // 检查关键词匹配
+        const messageText = message.text || '';
+        console.log('消息文本:', messageText);
+        
+        if (monitorKeywordsNormalized.length > 0) {
+            console.log('检查关键词匹配:', {
+                messageText,
+                keywords: monitorKeywordsNormalized
+            });
+            
+            const hasKeyword = monitorKeywordsNormalized.some(keyword => 
+                messageText.toLowerCase().includes(keyword)
+            );
+            
+            console.log('关键词匹配结果:', {
+                messageText,
+                keywords: monitorKeywordsNormalized,
+                hasKeyword
+            });
+            
+            if (!hasKeyword) {
+                console.log('消息不包含任何监控关键词，跳过处理');
+                return;
+            }
+            
+            console.log('✅ 消息包含监控关键词');
+        } else {
+            console.log('未设置监控关键词');
+        }
+        
+        // 检查是否是通知群组中的消息，避免循环
+        const normalizedNotificationChatId = normalizeId(NOTIFICATION_CHAT_ID);
+        if (normalizedNotificationChatId && normalizedChatId === normalizedNotificationChatId) {
+            console.log('跳过来自通知群组的消息以避免循环');
+            return;
+        }
+        
+        // 发送通知
+        if (NOTIFICATION_CHAT_ID && TELEGRAM_BOT_TOKEN) {
+            try {
+                const chatTitle = message.chat.title || message.chat.first_name || 'Unknown';
+                const fromUser = message.from ? (message.from.first_name || message.from.username || 'Unknown') : 'Unknown';
+                const messageText = message.text || '[Non-text message]';
+                
+                console.log('准备发送通知到:', {
+                    notificationChatId: NOTIFICATION_CHAT_ID,
+                    chatTitle,
+                    fromUser,
+                    messageText
+                });
+                
+                const result = await ctx.reply(`转发消息来自: ${chatTitle}\n发送者: ${fromUser}\n内容: ${messageText}`, {
+                    chat_id: NOTIFICATION_CHAT_ID
+                });
+                
+                console.log('通知发送成功:', JSON.stringify(result, null, 2));
+            } catch (error) {
+                console.error('发送通知失败:', error);
+                console.error('错误详情:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            }
+        } else {
+            console.log('缺少发送通知的必要配置:', {
+                hasNotificationChatId: !!NOTIFICATION_CHAT_ID,
+                hasTelegramBotToken: !!TELEGRAM_BOT_TOKEN
+            });
+        }
+        
+        // 响应用户
+        try {
+            await ctx.reply('消息已收到并处理');
+            console.log('用户响应发送成功');
+        } catch (error) {
+            console.error('发送用户响应失败:', error);
+        }
+        
+        console.log(`=== ${updateType}处理完成 ===`);
+    } catch (error) {
+        console.error('处理消息时出错:', error);
+        console.error('错误堆栈:', error.stack);
+    }
 }
 
 // 在模块加载时初始化机器人
