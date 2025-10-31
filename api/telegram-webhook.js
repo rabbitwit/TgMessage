@@ -206,34 +206,76 @@ async function processMessage(ctx, updateType) {
             console.log('未设置排除列表');
         }
         
-        // 检查关键词匹配
+        // 检查关键词匹配 - 根据用户说明，USER_KEYWORDS 优先于 MONITOR_KEYWORDS
         const messageText = message.text || '';
         console.log('消息文本:', messageText);
         
-        if (monitorKeywordsNormalized.length > 0) {
-            console.log('检查关键词匹配:', {
+        let shouldProcessMessage = false;
+        
+        // 检查是否是目标用户发送的消息
+        const isTargetUser = targetUserIdsNormalized.length > 0 && 
+                             normalizedFromUserId && 
+                             targetUserIdsNormalized.includes(normalizedFromUserId);
+        
+        // 如果设置了 USER_KEYWORDS，则优先使用它进行匹配
+        if (userKeywordsNormalized.length > 0) {
+            console.log('检查用户关键词匹配:', {
+                messageText,
+                userKeywords: userKeywordsNormalized
+            });
+            
+            const hasUserKeyword = userKeywordsNormalized.some(keyword => 
+                messageText.toLowerCase().includes(keyword)
+            );
+            
+            console.log('用户关键词匹配结果:', {
+                messageText,
+                keywords: userKeywordsNormalized,
+                hasUserKeyword
+            });
+            
+            // 如果是目标用户且包含用户关键词，则处理消息
+            if (isTargetUser && hasUserKeyword) {
+                shouldProcessMessage = true;
+                console.log('✅ 目标用户发送的消息包含用户关键词');
+            } 
+            // 如果不是目标用户但设置了用户关键词，则不处理
+            else if (!isTargetUser) {
+                console.log('非目标用户发送的消息，但设置了用户关键词，跳过处理');
+                return;
+            }
+        } 
+        // 如果没有设置 USER_KEYWORDS，则使用 MONITOR_KEYWORDS
+        else if (monitorKeywordsNormalized.length > 0) {
+            console.log('检查监控关键词匹配:', {
                 messageText,
                 keywords: monitorKeywordsNormalized
             });
             
-            const hasKeyword = monitorKeywordsNormalized.some(keyword => 
+            const hasMonitorKeyword = monitorKeywordsNormalized.some(keyword => 
                 messageText.toLowerCase().includes(keyword)
             );
             
-            console.log('关键词匹配结果:', {
+            console.log('监控关键词匹配结果:', {
                 messageText,
                 keywords: monitorKeywordsNormalized,
-                hasKeyword
+                hasMonitorKeyword
             });
             
-            if (!hasKeyword) {
-                console.log('消息不包含任何监控关键词，跳过处理');
-                return;
+            if (hasMonitorKeyword) {
+                shouldProcessMessage = true;
+                console.log('✅ 消息包含监控关键词');
             }
-            
-            console.log('✅ 消息包含监控关键词');
-        } else {
-            console.log('未设置监控关键词');
+        } 
+        // 如果都没有设置关键词，则处理所有消息
+        else {
+            shouldProcessMessage = true;
+            console.log('✅ 未设置关键词，处理所有消息');
+        }
+        
+        if (!shouldProcessMessage) {
+            console.log('消息不包含任何需要监控的关键词，跳过处理');
+            return;
         }
         
         // 检查是否是通知群组中的消息，避免循环
